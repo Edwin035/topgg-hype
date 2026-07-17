@@ -4,7 +4,21 @@ import {
   getCollection,
   getCollections,
   type ProviderCollection,
+  type ProviderProduct,
 } from '@/lib/providers/endpoints/catalog';
+
+// Orden natural (alfanumérico) por nombre: trata los números como números, así
+// "100" < "310" < "520" < "1060" < "2180" (no el orden string "100","1060"...).
+const nameCollator = new Intl.Collator('es', {
+  numeric: true,
+  sensitivity: 'base',
+});
+
+function sortProductsNatural(products?: ProviderProduct[]): ProviderProduct[] {
+  return [...(products ?? [])].sort((a, b) =>
+    nameCollator.compare(a.name ?? '', b.name ?? ''),
+  );
+}
 
 export function useCatalogSections() {
   const [data, setData] = useState<ProviderCollection[]>([]);
@@ -24,11 +38,18 @@ export function useCatalogSections() {
         const detailedCollections = await Promise.all(
           (baseCollections ?? []).map(async (collection) => {
             try {
-              return await getCollection(collection.id, controller.signal);
+              const detailed = await getCollection(
+                collection.id,
+                controller.signal,
+              );
+              return {
+                ...detailed,
+                products: sortProductsNatural(detailed.products),
+              };
             } catch {
               return {
                 ...collection,
-                products: collection.products ?? [],
+                products: sortProductsNatural(collection.products),
               };
             }
           }),
