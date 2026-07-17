@@ -5,7 +5,10 @@ import { ChevronLeft, Minus, Plus } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import type { Product } from "@/components/ProductCard";
-import { getProduct } from "@/lib/providers/endpoints/catalog";
+import {
+  getProductForDisplay,
+  type ProviderProduct,
+} from "@/lib/providers/endpoints/catalog";
 import { useAuthDialog } from "@/contexts/AuthContext";
 
 type ProductPageState = {
@@ -42,9 +45,7 @@ function linkify(text: string) {
   });
 }
 
-function buildProductFromApi(
-  apiProduct: Awaited<ReturnType<typeof getProduct>>,
-): Product {
+function buildProductFromApi(apiProduct: ProviderProduct): Product {
   const nameLower = apiProduct.name.toLowerCase();
 
   return {
@@ -124,7 +125,15 @@ const ProductPage = () => {
         setLoading(true);
         setError(null);
 
-        const apiProduct = await getProduct(Number(id), controller.signal);
+        const apiProduct = await getProductForDisplay(
+          Number(id),
+          controller.signal,
+        );
+
+        if (!apiProduct) {
+          setError("Producto no encontrado en el catálogo");
+          return;
+        }
 
         setProduct(buildProductFromApi(apiProduct));
       } catch (err) {

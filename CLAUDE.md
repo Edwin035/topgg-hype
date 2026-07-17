@@ -153,6 +153,19 @@ producción.**
 
 ## Gotchas (importante)
 
+- **Quirk de Hype — moneda:** `/catalog/products/:id` IGNORA la moneda pedida y devuelve el
+  precio en USD sin etiquetar (0.94 en vez de 4200 COP). Los endpoints de
+  catálogo/colecciones sí respetan `currency` e incluyen `salesCurrencyCode`. Para PRECIOS
+  usar siempre el árbol: front `getProductForDisplay`/`findProductInCatalog`
+  (`lib/providers/endpoints/catalog.ts`); backend `CatalogService.findProductInCatalog`.
+  Además `purchase()` valida `salesCurrencyCode === 'COP'` antes de cobrar.
+- **Quirk de Hype — stock:** `{hasStock: true, amount: -1}` significa stock
+  ILIMITADO/desconocido. Un amount negativo NO es "insuficiente".
+- **Binance geo-bloqueado en dev:** el API de Binance Pay responde **451 (restricted
+  location)** desde esta red local — cualquier llamada (certificados, crear orden) falla.
+  En Railway/producción sí funciona. O sea: el flujo de pago completo solo se puede probar
+  desplegado; en local se prueba hasta "crear orden falla → venta CANCELADA/CREATE_FAILED".
+
 - **Fetch de catálogo:** el hook vivo es `useCatalogSections` (`src/hooks/providers/`), que
   compone `getCollections` + `getCollection` de `lib/providers/endpoints/catalog`. No hay un
   `useCatalog` genérico (existía uno roto y se eliminó).

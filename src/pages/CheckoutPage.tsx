@@ -13,7 +13,10 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/components/Auth/AuthProvider";
 import type { Product } from "@/components/ProductCard";
-import { getProduct } from "@/lib/providers/endpoints/catalog";
+import {
+  getProductForDisplay,
+  type ProviderProduct,
+} from "@/lib/providers/endpoints/catalog";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { checkout } from "@/lib/api/checkout";
@@ -31,9 +34,7 @@ function normalizeQuantity(value: number) {
   return Math.min(MAX_FRONT_QUANTITY, Math.max(MIN_QUANTITY, Math.floor(value)));
 }
 
-function buildProductFromApi(
-  apiProduct: Awaited<ReturnType<typeof getProduct>>,
-): Product {
+function buildProductFromApi(apiProduct: ProviderProduct): Product {
   const nameLower = apiProduct.name.toLowerCase();
 
   return {
@@ -124,7 +125,16 @@ const CheckoutPage = () => {
         setLoadingProduct(true);
         setError(null);
 
-        const apiProduct = await getProduct(Number(id), controller.signal);
+        const apiProduct = await getProductForDisplay(
+          Number(id),
+          controller.signal,
+        );
+
+        if (!apiProduct) {
+          setError("Producto no encontrado en el catálogo");
+          return;
+        }
+
         setProduct(buildProductFromApi(apiProduct));
       } catch (err) {
         if (controller.signal.aborted) return;

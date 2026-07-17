@@ -78,3 +78,61 @@ export async function getProductStock(productId: number, signal?: AbortSignal) {
     },
   );
 }
+
+/** Árbol completo del catálogo (colecciones anidadas con sus productos). */
+export async function getCatalogTree(signal?: AbortSignal) {
+  return http<ProviderCollection[]>("/pin-hype/catalog", {
+    method: "GET",
+    signal,
+    query: hypeQuery,
+  });
+}
+
+/**
+ * Resuelve un producto por id buscándolo en el ÁRBOL del catálogo.
+ *
+ * OJO (quirk de Hype): /catalog/products/:id IGNORA la moneda pedida y devuelve
+ * el precio en USD sin etiquetarlo. El catálogo/colecciones sí respetan COP e
+ * incluyen `salesCurrencyCode`. Para PRECIOS siempre usar este método.
+ */
+export async function findProductInCatalog(
+  productId: number,
+  signal?: AbortSignal,
+): Promise<ProviderProduct | null> {
+  const tree = await getCatalogTree(signal);
+  const stack: ProviderCollection[] = Array.isArray(tree) ? [...tree] : [];
+
+  while (stack.length > 0) {
+    const collection = stack.pop();
+    if (!collection) continue;
+
+    const hit = (collection.products ?? []).find((p) => p.id === productId);
+    if (hit) return hit;
+
+    stack.push(...(collection.collections ?? []));
+  }
+
+  return null;
+}
+
+/**
+ * Producto para mostrar en UI: precio/moneda confiables desde el catálogo +
+ * `description` (que el catálogo no trae) desde products/:id. Si el producto no
+ * está en el catálogo, devuelve null (tampoco sería comprable).
+ */
+export async function getProductForDisplay(
+  productId: number,
+  signal?: AbortSignal,
+): Promise<ProviderProduct | null> {
+  const [inCatalog, byId] = await Promise.all([
+    findProductInCatalog(productId, signal),
+    getProduct(productId, signal).catch(() => null),
+  ]);
+
+  if (!inCatalog) return null;
+
+  return {
+    ...inCatalog,
+    description: inCatalog.description ?? byId?.description ?? null,
+  };
+}
