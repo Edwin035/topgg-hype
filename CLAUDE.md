@@ -120,13 +120,14 @@ cliente se contacta a mano).
 
 ### Panel de administración (dashboard del gestor)
 
-Sección `/admin` en el mismo frontend, protegida por **`RequireAdmin`** (rol ADMIN).
-Rutas anidadas bajo `AdminLayout` (`src/pages/admin/`): `/admin` (Overview con KPIs +
-gráfico recharts) y `/admin/ventas` (tabla paginada/filtrable + detalle). Cliente API en
-`src/lib/api/admin.ts`.
+**Vive en su propio repo/app: `../topgg-admin`** (Vite + React + shadcn, mismo tema).
+Se separó de este frontend por decisión de negocio: deploy y acceso independientes de la
+tienda. Tiene login propio (solo email+contraseña), guard `RequireAdmin` y rutas `/`
+(Overview), `/ventas` y `/atencion`. **En este repo NO hay código del panel** — no
+reintroducir rutas `/admin` aquí.
 
-Backend: módulo **`src/admin/`** (`AdminModule`), todo bajo `@UseGuards(JwtAuthGuard,
-AdminGuard)`:
+Backend (repo `../hype-integration-2026`): módulo **`src/admin/`** (`AdminModule`), todo
+bajo `@UseGuards(JwtAuthGuard, AdminGuard)`:
 - `GET /api/admin/stats?range=today|7d|30d|all` → KPIs agregados (por estado, ingresos
   COP+USDT de `COMPLETADA`, ticket, conversión, cola `REQUIERE_ATENCION`) + serie diaria
   (vía `$queryRaw` con `date_trunc`).
@@ -139,12 +140,9 @@ AdminGuard)`:
   `Sale`: `resolvedByUserId`, `resolvedAt`, `adminNote`. `AdminModule` importa
   `CheckoutModule` (que ahora **exporta** `CheckoutService`).
 
-Frontend fase 2: página **`/admin/atencion`** (cola de `REQUIERE_ATENCION` con contacto +
-motivo) y componente reutilizable `src/components/admin/SaleActions.tsx` (botones Reintentar
-/ Resolver / Cancelar con react-query + `sonner`), usado también en el detalle de Ventas.
-
-`recharts` ya estaba en dependencias (no se agregó nada). `chart.tsx` de shadcn disponible,
-pero el Overview usa recharts directo con tokens del tema (`hsl(var(--primary))`, etc.).
+UI del panel (en `topgg-admin`): Overview con KPIs + gráfico recharts, tabla de ventas
+paginada/filtrable con detalle, cola de atención con acciones (Reintentar / Resolver /
+Cancelar via `SaleActions`).
 
 **Seed de desarrollo (backend):** `npm run db:seed` (o `npx prisma db seed`) corre
 `prisma/seed.ts` — idempotente: upsert de un admin + ventas de ejemplo (COMPLETADA,

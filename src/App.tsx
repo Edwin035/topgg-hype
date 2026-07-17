@@ -23,13 +23,7 @@ import BinancePaySuccess from "./pages/BinancePaySuccess";
 import PartnerPage from "./pages/PartnerPage";
 import NotFound from "./pages/NotFound";
 
-import AdminLayout from "./pages/admin/AdminLayout";
-import AdminOverview from "./pages/admin/AdminOverview";
-import AdminSales from "./pages/admin/AdminSales";
-import AdminAttention from "./pages/admin/AdminAttention";
-
 import { RequireAuth } from "./RequireAuth";
-import { RequireAdmin } from "./RequireAdmin";
 
 const queryClient = new QueryClient();
 
@@ -115,18 +109,6 @@ const App = () => (
               />
 
               <Route path="/aliados" element={<PartnerPage />} />
-
-              <Route
-                path="/admin"
-                element={
-                  <RequireAdmin>
-                    <AdminLayout />
-                  </RequireAdmin>
-                }>
-                <Route index element={<AdminOverview />} />
-                <Route path="ventas" element={<AdminSales />} />
-                <Route path="atencion" element={<AdminAttention />} />
-              </Route>
 
               <Route path="*" element={<NotFound />} />
             </Routes>
