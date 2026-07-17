@@ -21,7 +21,8 @@ type StatusApi =
   | "PENDIENTE"
   | "EN_PROCESO"
   | "DEVUELTO"
-  | "CANCELADA";
+  | "CANCELADA"
+  | "REQUIERE_ATENCION";
 // Estructura cruda de una venta tal como viene desde el backend
 export interface ApiSaleItem {
   id: string;
@@ -67,7 +68,13 @@ export interface HistoryItem {
 
   quantity: number;
 
-  status: "Completado" | "Pendiente" | "En Proceso" | "Devuelto" | "Cancelada";
+  status:
+    | "Completado"
+    | "Pendiente"
+    | "En Proceso"
+    | "Devuelto"
+    | "Cancelada"
+    | "Requiere Atención";
 
   statusRaw: StatusApi | string;
   paymentPortalRaw?: string | null;
@@ -106,6 +113,8 @@ function mapStatusToLabel(s: StatusApi | string): HistoryItem["status"] {
       return "Devuelto";
     case "CANCELADA":
       return "Cancelada";
+    case "REQUIERE_ATENCION":
+      return "Requiere Atención";
     default:
       return "Pendiente";
   }
@@ -123,6 +132,8 @@ function badgeClass(status: HistoryItem["status"]) {
       return "bg-orange-500/95 text-white";
     case "Cancelada":
       return "bg-red-500/95 text-white";
+    case "Requiere Atención":
+      return "bg-purple-500/95 text-white";
     default:
       return "bg-gray-500 text-white";
   }
@@ -252,7 +263,7 @@ function extractLegacyPins(s: ApiSaleItem): string[] {
   return Array.from(new Set(out));
 }
 // Normaliza cantidades inválidas o ausentes
-function normalizeQty(q: any): number {
+function normalizeQty(q: unknown): number {
   const n = Number(q);
   if (!Number.isFinite(n) || n < 1) return 1;
   return Math.floor(n);
@@ -347,9 +358,10 @@ const OrderHistoryPage = () => {
       setServerTotal(
         Number.isFinite(res.total) ? res.total : (res.items?.length ?? 0),
       );
-    } catch (e: any) {
+    } catch (e) {
+      const err = e as { response?: { data?: { message?: string } } };
       setError(
-        e?.response?.data?.message ??
+        err?.response?.data?.message ??
           "No se pudo obtener el historial de compras",
       );
     } finally {
@@ -545,9 +557,10 @@ const OrderHistoryPage = () => {
 
       toast.success("Abriendo Binance Pay…");
       redirectTo(url);
-    } catch (e: any) {
+    } catch (e) {
+      const err = e as { response?: { data?: { message?: string } } };
       const msg =
-        e?.response?.data?.message ??
+        err?.response?.data?.message ??
         "No se pudo abrir el pago. Intenta nuevamente.";
       toast.error(msg);
     } finally {
@@ -594,7 +607,7 @@ const OrderHistoryPage = () => {
                     onChange={(e) =>
                       setFilters((f) => ({
                         ...f,
-                        status: e.target.value as any,
+                        status: e.target.value as "ALL" | StatusApi,
                       }))
                     }
                     className="w-full bg-background border border-border p-2.5 rounded-lg">
@@ -604,6 +617,7 @@ const OrderHistoryPage = () => {
                     <option value="COMPLETADO">Completado</option>
                     <option value="DEVUELTO">Devuelto</option>
                     <option value="CANCELADA">Cancelada</option>
+                    <option value="REQUIERE_ATENCION">Requiere atención</option>
                   </select>
 
                   {/* Desde */}
@@ -733,14 +747,25 @@ const OrderHistoryPage = () => {
                                     ${order.total}
                                   </span>
                                 </div>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="w-full sm:w-auto"
-                                  onClick={() => openOrderDetail(order)}>
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  Ver Detalles
-                                </Button>
+                                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                                  {shouldShowBinancePayButton(order) && (
+                                    <Button
+                                      size="sm"
+                                      className="w-full sm:w-auto"
+                                      disabled={paying}
+                                      onClick={() => handlePay(order)}>
+                                      {paying ? "Abriendo…" : "Ir a pagar"}
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full sm:w-auto"
+                                    onClick={() => openOrderDetail(order)}>
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Ver Detalles
+                                  </Button>
+                                </div>
                                 <span className="font-bold text-lg text-neon-green hidden sm:block">
                                   Total: ${order.total}
                                 </span>

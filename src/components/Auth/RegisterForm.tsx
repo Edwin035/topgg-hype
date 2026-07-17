@@ -1,13 +1,14 @@
 import React, { useMemo, useState } from "react";
-import { Check, Lock, Mail, User, X } from "lucide-react";
-import { PasswordInput, Popover, Progress, Text, Box } from "@mantine/core";
+import { Check, Eye, EyeOff, Lock, Mail, User, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { createUser } from "@/lib/api/users";
+import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 
 function PasswordRequirement({
   meets,
@@ -17,15 +18,15 @@ function PasswordRequirement({
   label: string;
 }) {
   return (
-    <Text
-      color={meets ? "teal" : "red"}
-      sx={{ display: "flex", alignItems: "center" }}
-      mt={7}
-      size="sm"
+    <div
+      className={cn(
+        "mt-1.5 flex items-center text-sm",
+        meets ? "text-emerald-500" : "text-red-500",
+      )}
     >
       {meets ? <Check size={14} /> : <X size={14} />}
-      <Box ml={10}>{label}</Box>
-    </Text>
+      <span className="ml-2.5">{label}</span>
+    </div>
   );
 }
 
@@ -58,6 +59,7 @@ const RegisterForm = ({ goLogin }: RegisterFormProps) => {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [popoverOpened, setPopoverOpened] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const [serverMsg, setServerMsg] = useState<string | null>(null);
@@ -70,7 +72,12 @@ const RegisterForm = ({ goLogin }: RegisterFormProps) => {
   });
 
   const strength = getStrength(password);
-  const color = strength === 100 ? "teal" : strength > 50 ? "yellow" : "red";
+  const strengthColor =
+    strength === 100
+      ? "bg-emerald-500"
+      : strength > 50
+        ? "bg-yellow-500"
+        : "bg-red-500";
 
   const checks = useMemo(
     () =>
@@ -167,8 +174,9 @@ const RegisterForm = ({ goLogin }: RegisterFormProps) => {
       setConfirmPassword("");
 
       goLogin();
-    } catch (err: any) {
-      const msg = err?.message || "No se pudo crear la cuenta.";
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "No se pudo crear la cuenta.";
       setServerMsg(msg);
       toast.error(msg);
     } finally {
@@ -237,52 +245,56 @@ const RegisterForm = ({ goLogin }: RegisterFormProps) => {
           Contraseña
         </Label>
 
-        <div className="relative">
-          <Lock className="absolute left-3 top-[20px] z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        {/*
+          Indicador de fuerza como panel propio (no Popover de Radix): se muestra
+          mientras el input de contraseña tiene el foco y se desmonta al salir del
+          contenedor. Evita el ciclo de montaje/animación de Radix Presence y no le
+          roba el foco al input. `pointer-events-none` deja pasar el clic a los
+          campos que quedan debajo mientras el panel está visible.
+        */}
+        <div
+          className="relative"
+          onFocusCapture={() => setPopoverOpened(true)}
+          onBlurCapture={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+              setPopoverOpened(false);
+            }
+          }}
+        >
+          <Lock className="absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
-          <Popover
-            opened={popoverOpened}
-            position="bottom"
-            width="target"
-            transition="pop"
+          <Input
+            id="register-password"
+            type={showPassword ? "text" : "password"}
+            placeholder="Tu contraseña"
+            className="h-10 pl-10 pr-10 text-sm sm:h-11"
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setFormErrors((prev) => ({ ...prev, password: "" }));
+            }}
+            autoComplete="new-password"
+          />
+
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+            aria-label={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
           >
-            <Popover.Target>
-              <div
-                onFocusCapture={() => setPopoverOpened(true)}
-                onBlurCapture={() => setPopoverOpened(false)}
-              >
-                <PasswordInput
-                  placeholder="Tu contraseña"
-                  value={password}
-                  onChange={(evt) => {
-                    setPassword(evt.currentTarget.value);
-                    setFormErrors((prev) => ({ ...prev, password: "" }));
-                  }}
-                  radius="sm"
-                  styles={{
-                    input: {
-                      height: 40,
-                      background: "hsl(var(--background))",
-                      borderRadius: "0.675rem",
-                      color: "hsl(var(--foreground))",
-                      paddingLeft: "2.5rem",
-                      fontSize: "0.875rem",
-                      border: "1px solid hsl(var(--input))",
-                    },
-                    innerInput: {
-                      color: "hsl(var(--foreground))",
-                    },
-                  }}
-                />
-              </div>
-            </Popover.Target>
+            {showPassword ? (
+              <EyeOff className="h-4 w-4" />
+            ) : (
+              <Eye className="h-4 w-4" />
+            )}
+          </button>
 
-            <Popover.Dropdown>
+          {popoverOpened && (
+            <div className="pointer-events-none absolute left-0 top-full z-50 mt-2 w-full rounded-md border bg-popover p-4 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95">
               <Progress
-                color={color}
                 value={strength}
-                size={5}
-                style={{ marginBottom: 10 }}
+                className="mb-2.5 h-1.5"
+                indicatorClassName={strengthColor}
               />
 
               <PasswordRequirement
@@ -291,8 +303,8 @@ const RegisterForm = ({ goLogin }: RegisterFormProps) => {
               />
 
               {checks}
-            </Popover.Dropdown>
-          </Popover>
+            </div>
+          )}
         </div>
 
         {formErrors.password && (

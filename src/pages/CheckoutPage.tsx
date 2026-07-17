@@ -14,15 +14,9 @@ import Footer from "@/components/Footer";
 import { useAuth } from "@/components/Auth/AuthProvider";
 import type { Product } from "@/components/ProductCard";
 import { getProduct } from "@/lib/providers/endpoints/catalog";
-import { useBuyPin } from "@/hooks/providers/useBuyPin";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { useReversalByTransaction } from "@/hooks/providers/useReversal";
-import { createSale, type CreateSalePinPayload } from "@/lib/api/sales";
-import type {
-  PreRedeemResponse,
-  PreRedeemTransaction,
-} from "@/lib/providers/endpoints/redeem";
+import { checkout } from "@/lib/api/checkout";
 
 type CheckoutPageState = {
   product?: Product;
@@ -76,68 +70,11 @@ function buildProductFromApi(
   };
 }
 
-function buildSalePinsFromPreRedeem(
-  preRedeem: PreRedeemResponse,
-): CreateSalePinPayload[] {
-  const pinsFromTransactions: CreateSalePinPayload[] = [];
-
-  if (preRedeem.transaction?.key) {
-    pinsFromTransactions.push({
-      pin: preRedeem.transaction.key,
-      transactionId:
-        preRedeem.transaction.transactionId !== undefined &&
-        preRedeem.transaction.transactionId !== null
-          ? String(preRedeem.transaction.transactionId)
-          : undefined,
-      redirectLink: preRedeem.transaction.redirectLink,
-      raw: preRedeem.transaction as Record<string, unknown>,
-    });
-  }
-
-  if (Array.isArray(preRedeem.transactions)) {
-    preRedeem.transactions.forEach((transaction) => {
-      if (!transaction.key) return;
-
-      pinsFromTransactions.push({
-        pin: transaction.key,
-        transactionId:
-          transaction.transactionId !== undefined &&
-          transaction.transactionId !== null
-            ? String(transaction.transactionId)
-            : undefined,
-        redirectLink: transaction.redirectLink,
-        raw: transaction as Record<string, unknown>,
-      });
-    });
-  }
-
-  if (pinsFromTransactions.length > 0) {
-    return pinsFromTransactions;
-  }
-
-  if (Array.isArray(preRedeem.pins)) {
-    return preRedeem.pins.map((pin) => ({
-      pin,
-    }));
-  }
-
-  if (preRedeem.key) {
-    return [
-      {
-        pin: preRedeem.key,
-      },
-    ];
-  }
-
-  return [];
-}
-
 const CheckoutPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const { buy, loadingId, error: buyError } = useBuyPin();
 
   const state = location.state as CheckoutPageState | null;
   const stateProduct = state?.product;
@@ -145,6 +82,11 @@ const CheckoutPage = () => {
   const [selectedMethod, setSelectedMethod] = useState<string>("pin-hype");
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [payInfo, setPayInfo] = useState<{
+    amountUsdt: number;
+    usdtCopRate: number;
+    checkoutUrl: string;
+  } | null>(null);
   const [product, setProduct] = useState<Product | null>(stateProduct ?? null);
   const [loadingProduct, setLoadingProduct] = useState(!stateProduct);
   const [error, setError] = useState<string | null>(null);
@@ -262,55 +204,14 @@ const CheckoutPage = () => {
         setProgress((prev) => (prev >= 85 ? prev : prev + 10));
       }, 250);
 
-      const result = await buy({
+      // Crea la venta PENDIENTE + la orden de Binance Pay. NO canja todavía: el
+      // pin se entrega solo tras el pago verificado por webhook.
+      const res = await checkout({
         productId: product.providerProductId,
+        quantity,
         countryCode: product.countryCode || "CO",
         currencyCode: product.salesCurrencyCode || "COP",
-        quantity,
       });
-
-      const salePins = buildSalePinsFromPreRedeem(result);
-
-      if (salePins.length === 0) {
-        throw new Error("No se recibieron pines para guardar la venta");
-      }
-
-      const sale = await createSale({
-        productId: product.id,
-        providerProductId: product.providerProductId,
-        productName: product.name,
-        productImage: product.image,
-        platform: product.platform || "Mobile",
-        quantity,
-        unitPrice: product.price,
-        subtotal,
-        total,
-        currencyCode: product.salesCurrencyCode,
-        currencySymbol: product.currencySymbol,
-        redeemResponse: result,
-        metadata: {
-          source: "pin-hype",
-          paymentMethod: "BINANCE",
-          countryCode: product.countryCode || "CO",
-          currencyCode: product.salesCurrencyCode || "COP",
-        },
-        pins: salePins,
-      });
-
-      const firstTransaction =
-        result.transaction || result.transactions?.[0] || null;
-
-      // 🔥 GUARDAR TRANSACCIÓN
-      const purchase = {
-        saleId: sale.id,
-        transactionId: firstTransaction?.transactionId,
-        productId: product.id,
-        quantity,
-        status: "completed",
-        createdAt: Date.now(),
-      };
-
-      localStorage.setItem("purchase", JSON.stringify(purchase));
 
       if (timer) {
         window.clearInterval(timer);
@@ -318,16 +219,17 @@ const CheckoutPage = () => {
 
       setProgress(100);
 
-      // 👉 FUTURO: aquí iría redirectLink
-      // window.location.href = result.transaction.redirectLink;
+      // Guardar el saleId para que la página de retorno haga polling del estado.
+      localStorage.setItem(
+        "tg_pending_binance_sale",
+        JSON.stringify({ saleId: res.sale.id, productId: product.id }),
+      );
 
-      navigate(`/factura/${product.id}`, {
-        state: {
-          product,
-          quantity,
-          preRedeem: result,
-          sale,
-        },
+      // Mostrar la aclaración de cobro en USDT antes de redirigir a Binance.
+      setPayInfo({
+        amountUsdt: res.amountUsdt,
+        usdtCopRate: res.usdtCopRate,
+        checkoutUrl: res.checkoutUrl,
       });
     } catch (err) {
       if (timer) {
@@ -335,39 +237,12 @@ const CheckoutPage = () => {
       }
 
       setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo completar el pre-redeem",
+        err instanceof Error ? err.message : "No se pudo iniciar el pago",
       );
       setIsProcessing(false);
       setProgress(0);
     }
   };
-
-  {
-    /* REVERSAL LOGIC */
-  }
-  // const { mutate: reverseTx } = useReversalByTransaction();
-  // useEffect(() => {
-  //   const stored = localStorage.getItem("purchase");
-  //   if (!stored) return;
-
-  //   const purchase = JSON.parse(stored);
-
-  //   // ⏱️ si lleva más de 5 minutos pendiente → limpiar
-  //   const isExpired = Date.now() - purchase.createdAt > 5 * 60 * 1000;
-
-  //   if (purchase.status === "pending" && isExpired) {
-  //     reverseTx(
-  //       { transactionId: purchase.transactionId },
-  //       {
-  //         onSuccess: () => {
-  //           localStorage.removeItem("purchase");
-  //         },
-  //       },
-  //     );
-  //   }
-  // }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -422,12 +297,6 @@ const CheckoutPage = () => {
                     </p>
                   </div>
                 </button>
-
-                {buyError ? (
-                  <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                    {buyError}
-                  </div>
-                ) : null}
 
                 {error ? (
                   <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -536,8 +405,8 @@ const CheckoutPage = () => {
                   <span className="font-semibold text-foreground">
                     Confirmar Pago
                   </span>
-                  , se ejecutará el pre-redeem, se guardará la venta y se
-                  generará la información de la transacción.
+                  , se creará tu orden y te llevaremos a Binance Pay. El cobro es
+                  en USDT a la tasa vigente; verás el monto exacto antes de pagar.
                 </div>
 
                 <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
@@ -583,11 +452,9 @@ const CheckoutPage = () => {
                     }
                     handleConfirmPayment();
                   }}
-                  disabled={
-                    isProcessing || loadingId === product.providerProductId
-                  }
+                  disabled={isProcessing}
                   className="w-full btn-gaming text-center py-3 text-lg disabled:opacity-50 disabled:pointer-events-none">
-                  {isProcessing || loadingId === product.providerProductId
+                  {isProcessing
                     ? "Procesando..."
                     : `Confirmar Pago (${quantity})`}
                 </button>
@@ -599,38 +466,91 @@ const CheckoutPage = () => {
 
       <Dialog
         open={isProcessing}
-        onOpenChange={() => {
-          // bloquear cierre manual mientras procesa
+        onOpenChange={(open) => {
+          // Solo se puede cerrar una vez creada la orden (para cancelar el pago).
+          if (!open && payInfo) {
+            setIsProcessing(false);
+            setPayInfo(null);
+            setProgress(0);
+          }
         }}>
         <DialogContent
           className="sm:max-w-md text-center"
-          onPointerDownOutside={(e) => e.preventDefault()}>
-          <DialogTitle className="sr-only">Procesando pago</DialogTitle>
+          onPointerDownOutside={(e) => {
+            if (!payInfo) e.preventDefault();
+          }}>
+          <DialogTitle className="sr-only">
+            {payInfo ? "Ir a pagar en Binance" : "Creando orden de pago"}
+          </DialogTitle>
 
-          <div className="flex flex-col items-center gap-5 py-4">
-            <div className="relative">
+          {!payInfo ? (
+            <div className="flex flex-col items-center gap-5 py-4">
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
                 <Loader2 className="h-8 w-8 text-primary animate-spin" />
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <h3 className="text-lg font-bold text-foreground">
-                Procesando tu compra
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Estamos ejecutando el pre-redeem de {quantity} producto
-                {quantity > 1 ? "s" : ""} y guardando la venta...
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold text-foreground">
+                  Creando tu orden de pago
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Estamos preparando tu pago de {quantity} producto
+                  {quantity > 1 ? "s" : ""} con Binance Pay...
+                </p>
+              </div>
+
+              <div className="w-full">
+                <Progress value={Math.min(progress, 100)} className="h-2" />
+                <p className="text-xs text-muted-foreground mt-2">
+                  {Math.min(Math.round(progress), 100)}% completado
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-4 py-4">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                <CreditCard className="h-8 w-8 text-primary" />
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="text-lg font-bold text-foreground">
+                  Pago con Binance Pay
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Se te cobrará{" "}
+                  <span className="font-bold text-foreground">
+                    {payInfo.amountUsdt} USDT
+                  </span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  El cobro es en USDT. Tasa aplicada: 1 USDT ={" "}
+                  {payInfo.usdtCopRate.toLocaleString("es-CO")} COP.
+                </p>
+              </div>
+
+              <a
+                href={payInfo.checkoutUrl}
+                className="w-full btn-gaming text-center py-3 text-base">
+                Ir a pagar en Binance
+              </a>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsProcessing(false);
+                  setPayInfo(null);
+                  setProgress(0);
+                }}
+                className="text-sm text-muted-foreground hover:text-foreground">
+                Cancelar
+              </button>
+
+              <p className="text-xs text-muted-foreground">
+                Serás redirigido a Binance Pay. Tu pin se entrega automáticamente
+                al confirmarse el pago.
               </p>
             </div>
-
-            <div className="w-full">
-              <Progress value={Math.min(progress, 100)} className="h-2" />
-              <p className="text-xs text-muted-foreground mt-2">
-                {Math.min(Math.round(progress), 100)}% completado
-              </p>
-            </div>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
 

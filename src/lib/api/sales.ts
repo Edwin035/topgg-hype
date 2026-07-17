@@ -1,39 +1,22 @@
 import { authClient } from "./http";
-import type { PreRedeemResponse } from "@/lib/providers/endpoints/redeem";
 
 export type SalePaymentMethod = "BINANCE";
-export type SaleStatus = "COMPLETADA" | "CANCELADA" | "DEVUELTA";
+export type SaleStatus =
+  | "PENDIENTE"
+  | "EN_PROCESO"
+  | "COMPLETADA"
+  | "CANCELADA"
+  | "DEVUELTA"
+  // Pagada pero no entregada tras agotar reintentos: resolución manual (contacto).
+  | "REQUIERE_ATENCION";
 
 export type MyOrderStatusApi =
   | "COMPLETADO"
   | "PENDIENTE"
   | "EN_PROCESO"
   | "DEVUELTO"
-  | "CANCELADA";
-
-export interface CreateSalePinPayload {
-  pin: string;
-  transactionId?: string;
-  redirectLink?: string;
-  raw?: Record<string, unknown>;
-}
-
-export interface CreateSalePayload {
-  productId: number;
-  providerProductId?: number;
-  productName: string;
-  productImage?: string;
-  platform?: string;
-  quantity: number;
-  unitPrice: number;
-  subtotal: number;
-  total: number;
-  currencyCode?: string;
-  currencySymbol?: string;
-  redeemResponse?: PreRedeemResponse;
-  metadata?: Record<string, unknown>;
-  pins: CreateSalePinPayload[];
-}
+  | "CANCELADA"
+  | "REQUIERE_ATENCION";
 
 export interface SalePin {
   id: number;
@@ -65,6 +48,14 @@ export interface Sale {
 
   currencyCode?: string | null;
   currencySymbol?: string | null;
+
+  // Pago Binance Pay
+  paidAt?: string | null;
+  amountUsdt?: string | null;
+  usdtCopRate?: string | null;
+  binanceCheckoutUrl?: string | null;
+  binanceStatus?: string | null;
+  binanceExpireAt?: string | null;
 
   redeemResponse?: unknown;
   metadata?: unknown;
@@ -137,13 +128,6 @@ export interface MyOrdersSearchResponse {
   page: number;
   pageSize: number;
   total: number;
-}
-
-export function createSale(payload: CreateSalePayload) {
-  return authClient<Sale>("/sales", {
-    method: "POST",
-    body: payload,
-  });
 }
 
 export function getMySales() {
