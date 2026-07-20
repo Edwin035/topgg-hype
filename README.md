@@ -1,99 +1,70 @@
-# TopGG Shop
+# TopGG Shop (tienda)
 
-Aplicación web de e-commerce hecha con React + Vite + TypeScript + TailwindCSS, inspirada en un panel de tienda para gestión de productos, carrito y checkout.
+Tienda web (SPA) de **pines / gift cards de gaming** de TopLevel GG. Muestra el
+catálogo de [Pin Hype](https://hype.games/), deja comprar y pagar con **Binance Pay**,
+y consulta el historial de compras.
 
----
+Es solo el **frontend**. Consume la API del backend
+[`hype-integration-2026`](https://github.com/Toppages/Hype). El panel de administración
+vive en un repo aparte: [`topgg-admin`](https://github.com/Toppages/topgg-admin).
 
-## 🚀 Características principales
+## Stack
 
-- Interfaz SPA responsive con rutas de usuario:
-  - `/` inicio
-  - `/catalogo` catálogo de productos
-  - `/producto/:id` detalle del producto
-  - `/checkout/:id` pago
-  - `/factura/:id` visualización de factura
-  - `/perfil` datos de usuario
-  - `/historial` órdenes pasadas
-  - `/aliados` página de aliados
-- Autenticación con contexto (`AuthContext`) y dialog modal (`AuthDialog`)
-- API data fetching con `@tanstack/react-query`
-- Formularios validados con `react-hook-form`, `zod`
-- Toaster + Sonner para alertas de usuario
-- UI modular con componentes `shadcn/ui` personalizados
-- Internacionalización parcial del UX en español (rutas y textos)
+React 18 · Vite · TypeScript · TailwindCSS · shadcn/ui (Radix) · React Router ·
+`@tanstack/react-query` · `react-hook-form` + `zod`.
 
-## 🧱 Estructura del proyecto
+## Requisitos
 
-- `src/App.tsx`: ruta base, providers globales, enrutamiento
-- `src/pages/`: vistas principales del flujo de tienda
-- `src/components/`: componentes UI reutilizables
-- `src/contexts/AuthContext.tsx`: estado auth global
-- `src/lib/providers/`: configuraciones HTTP y endpoints API
-- `src/hooks/`: hooks personalizados (`use-mobile`, `use-toast`, negocio)
+- Node.js **18+**
+- npm (gestor de paquetes canónico — no usar pnpm/bun)
+- El backend corriendo y accesible (local o desplegado)
 
-## 🛠️ Requisitos
+## Configuración (variables de entorno)
 
-- Node.js 18+ (recomendado)
-- Bun no es obligatorio, pero la configuración se basa en Vite
+Copia `.env.example` a `.env` y ajusta los valores. **Ninguna de estas variables es un
+secreto** (el frontend es público), pero definen a qué backend apunta:
 
-## 📦 Instalación
+| Variable | Requerida | Descripción |
+| --- | --- | --- |
+| `VITE_API_URL` | Sí* | URL base del backend, **terminada en `/api`**. *Tiene un fallback en código, pero conviene setearla explícita. |
+| `VITE_PIN_HYPE_COUNTRY` | No | País para el catálogo (default `CO`). |
+| `VITE_PIN_HYPE_CURRENCY` | No | Moneda para el catálogo (default `COP`). |
+| `VITE_PIN_HYPE_LANGUAGE` | No | Idioma para el catálogo (default `es`). |
+| `VITE_FREE_FIRE_COLLECTION_ID` | No | Id de la colección destacada (default `2`). |
 
-1. Clonar repositorio:
+> Las `VITE_*` son de **tiempo de compilación**: si cambias una, hay que **reconstruir**.
+
+## Comandos
 
 ```bash
-git clone https://github.com/micuenta/topgg-shop.git
-cd topgg-shop
+npm install        # instalar dependencias
+npm run dev        # dev server en http://localhost:5173
+npm run build      # build de producción (a dist/). NO hace typecheck.
+npm run preview    # previsualizar el build
+npm run lint       # ESLint
+npm test           # tests (vitest)
 ```
 
-2. Instalar dependencias:
+Para chequear tipos: `npx tsc --noEmit` (el build usa SWC y no valida tipos).
 
-```bash
-npm install
-```
+## Flujo de compra (resumen)
 
-(ó `pnpm install`, `yarn install`)
+El pin **no se canjea hasta que el pago está confirmado por webhook de Binance**. Al
+confirmar la compra, el backend valida el precio real contra el catálogo, crea la venta
+`PENDIENTE` y una orden de Binance; el usuario paga y, al volver, la página
+`/pago/binance/success` hace polling hasta que la venta queda `COMPLETADA` (con el pin).
 
-## 🔧 Scripts disponibles
+## Deploy (Cloudflare Pages / Netlify)
 
-- `npm run dev` - Levanta entorno de desarrollo (`http://localhost:5173`)
-- `npm run build` - Genera build de producción
-- `npm run build:dev` - Build en modo desarrollo
-- `npm run preview` - Previsualiza build local
-- `npm run lint` - Ejecución de ESLint
-- `npm test` - Ejecuta tests con Vitest
-- `npm run test:watch` - tests watch mode
+- **Build command:** `npm run build`
+- **Output directory:** `dist`
+- **Env:** `VITE_API_URL` = URL del backend + `/api`
+- El SPA usa `public/_redirects` (`/* /index.html 200`) para el fallback de rutas.
 
-## 🧪 Pruebas
+## Repos relacionados
 
-- Ubicación de tests: `src/test/` (ej. `example.test.ts`)
-- Entorno de configuración: `src/test/setup.ts`
-
-## 🛡️ Estilo de código
-
-- ESLint, TypeScript strict, reglas de React Hooks
-- Tailwind + `tailwind-merge` para clases condicionales
-
-## 📌 Ajustes / desarrollo
-
-- Rutas de API y proveedores: `src/lib/providers/endpoints/*`
-- Catálogo y compra: `src/hooks/providers/*`
-- Ajustes de UI: componentes en `src/components/ui/` y `src/components/*`
-
-## 🔎 Recomendaciones
-
-- Añadir `.env` variables para endpoints si la API es externa.
-- Revisar `vite.config.ts` si se necesita proxy a microservicios.
-
-## 🙌 Contribuir
-
-1. Crear branch descriptivo: `feature/mi-mejora`
-2. Hacer PR con cambios claros.
-3. Incluir tests de nuevas funcionalidades.
-
----
-
-## 📬 Contacto
-
-Desarrollador: TopGG Shop
-
-*Documentado el 27 de marzo de 2026.*
+| Repo | Rol |
+| --- | --- |
+| `topgg-shop` (este) | Tienda / frontend público |
+| [`hype-integration-2026`](https://github.com/Toppages/Hype) | Backend NestJS (API, pagos, Hype) |
+| [`topgg-admin`](https://github.com/Toppages/topgg-admin) | Panel de administración (gestor) |
