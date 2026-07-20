@@ -1,20 +1,7 @@
-import { http, PIN_HYPE_DEFAULTS } from "../../api/http";
-
-export interface RedeemCustomer {
-  name?: string;
-  email?: string;
-  document?: string;
-  phone?: string;
-}
-
-export interface PreRedeemPayload {
-  productId: number;
-  partnerReference?: string;
-  countryCode?: string;
-  currencyCode?: string;
-  quantity?: number;
-  customer?: RedeemCustomer;
-}
+// Tipos de la respuesta de canje (pre-redeem) que usa la factura para mostrar los
+// pines. OJO: aquí NO hay ninguna función que llame a `/pin-hype/pre-redeem`: ese
+// endpoint se eliminó del backend a propósito. El pin se genera solo server-side
+// tras un pago confirmado por webhook; el front nunca canjea directamente.
 
 export interface PreRedeemTransaction {
   transactionId?: string;
@@ -31,21 +18,3 @@ export interface PreRedeemResponse {
   transaction?: PreRedeemTransaction;
   key?: string;
 }
-
-export async function preRedeem(payload: PreRedeemPayload) {
-  return http<PreRedeemResponse>("/pin-hype/pre-redeem", {
-    method: "POST",
-    body: {
-      ...payload,
-      countryCode: payload.countryCode || PIN_HYPE_DEFAULTS.country,
-      currencyCode: payload.currencyCode || PIN_HYPE_DEFAULTS.currency,
-      quantity: payload.quantity ?? 1,
-    },
-  });
-}
-
-/**
- * Alias para código viejo que importa:
- * import { createPreRedeem } from "@/lib/providers";
- */
-export const createPreRedeem = preRedeem;

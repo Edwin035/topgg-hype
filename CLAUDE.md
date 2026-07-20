@@ -151,6 +151,18 @@ REQUIERE_ATENCION, PENDIENTE) para probar el panel. Credenciales por env
 sin secretos en el repo). Wireado en `prisma.config.ts` (`migrations.seed`). **Nunca contra
 producción.**
 
+## Seguridad (modelo de accesos — no reintroducir huecos)
+
+Backend con `JwtAuthGuard` **global** (`APP_GUARD`); lo público lleva `@Public()`. Reglas:
+- **Público = solo tienda:** catálogo, registro (`POST /users`, que **siempre** fuerza rol
+  `USER`), login y webhook de Binance. Nada más.
+- **No hay canje de pin por HTTP:** `POST /pin-hype/pre-redeem` se eliminó. El pin se genera
+  server-side solo tras pago confirmado por webhook. No reintroducir ese endpoint.
+- **Endpoints sensibles de Hype** (`reversal`, `report`, `pin-hype/auth`, `echo`) y todo
+  `/admin/*`, `GET/DELETE /users`, `GET /sales` → **solo rol ADMIN**.
+- `GET/PATCH /users/:id` → dueño o admin; un cliente no puede cambiar su `role`/`isActive`.
+- **Primer admin:** `npm run create:admin` en el backend (nunca por HTTP).
+
 ## Gotchas (importante)
 
 - **Quirk de Hype — moneda:** `/catalog/products/:id` IGNORA la moneda pedida y devuelve el
