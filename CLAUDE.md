@@ -53,7 +53,7 @@ dominios distintos:
 - **`src/lib/providers/*`** → passthrough a las rutas del proveedor **Pin Hype**
   (`/pin-hype/...`): `catalog` (collections/products/stock), `redeem` (pre-redeem),
   `reversal`. Barril: `src/lib/providers/index.ts`. Inyecta `PIN_HYPE_DEFAULTS`
-  (country `CO`, currency `COP`, language `es`) definidos en `http.ts`.
+  (country `CO`, currency **`USD`**, language `es`) definidos en `http.ts`.
 
 Los hooks de negocio viven en `src/hooks/providers/*` (`useCatalogSections`, `useBuyPin`,
 `useStock`, `useReversal`, ...) y envuelven esas funciones de endpoints.
@@ -86,7 +86,8 @@ verificado por webhook. Antes de pagar, la venta vive `PENDIENTE` sin pines.
 
 1. `CheckoutPage` → `checkout()` (`src/lib/api/checkout.ts` → `POST /checkout`). El backend
    valida el precio real contra el catálogo de Hype (el cliente **no** envía precios),
-   **pre-chequea stock**, convierte COP→USDT con una tasa configurable, crea la venta
+   **pre-chequea stock**, convierte la moneda de venta a USDT (USD va **1:1**, sin tasa
+   manual; COP usaría `BINANCE_USDT_COP_RATE`, camino legacy), crea la venta
    `PENDIENTE` y una **orden hosted-checkout de Binance**. Devuelve
    `{ sale, checkoutUrl, amountUsdt, usdtCopRate, ... }`. **No canja.**
 2. El front guarda `tg_pending_binance_sale` en localStorage, muestra la aclaración de
@@ -165,12 +166,21 @@ Backend con `JwtAuthGuard` **global** (`APP_GUARD`); lo público lleva `@Public(
 
 ## Gotchas (importante)
 
+- **La tienda opera en USD.** `PIN_HYPE_DEFAULTS.currency` = `USD` y el backend pide USD a
+  Hype. USDT va 1:1 con el dólar, así que **no hay tasa manual** en el camino normal.
+- **Fail-closed de moneda (no lo debilites):** solo se muestran/venden productos cuyo precio
+  venga etiquetado **exactamente** en la moneda pedida.
+  - Front: `useCatalogSections` filtra por `salesCurrencyCode === PIN_HYPE_DEFAULTS.currency`.
+  - Backend: `purchase()` exige `salesCurrencyCode ===` la moneda pedida y `usdtRateFor()`
+    revienta si no conoce la tasa. Antes de cobrar en la moneda equivocada, no se cobra.
+- **Catálogo USD ≠ catálogo COP (verificado contra el API real):** en USD Hype solo publica
+  los **6 productos de Free Fire**; las **7 gift cards de PlayStation existen solo en COP** y
+  por eso NO aparecen en la tienda. No es un bug: es el fail-closed haciendo su trabajo.
 - **Quirk de Hype — moneda:** `/catalog/products/:id` IGNORA la moneda pedida y devuelve el
-  precio en USD sin etiquetar (0.94 en vez de 4200 COP). Los endpoints de
-  catálogo/colecciones sí respetan `currency` e incluyen `salesCurrencyCode`. Para PRECIOS
-  usar siempre el árbol: front `getProductForDisplay`/`findProductInCatalog`
-  (`lib/providers/endpoints/catalog.ts`); backend `CatalogService.findProductInCatalog`.
-  Además `purchase()` valida `salesCurrencyCode === 'COP'` antes de cobrar.
+  precio en USD sin etiquetar. Los endpoints de catálogo/colecciones sí respetan `currency`
+  e incluyen `salesCurrencyCode`. Para PRECIOS usar siempre el árbol: front
+  `getProductForDisplay`/`findProductInCatalog` (`lib/providers/endpoints/catalog.ts`);
+  backend `CatalogService.findProductInCatalog`.
 - **Quirk de Hype — stock:** `{hasStock: true, amount: -1}` significa stock
   ILIMITADO/desconocido. Un amount negativo NO es "insuficiente".
 - **Binance geo-bloqueado en dev:** el API de Binance Pay responde **451 (restricted
@@ -179,8 +189,13 @@ Backend con `JwtAuthGuard` **global** (`APP_GUARD`); lo público lleva `@Public(
   desplegado; en local se prueba hasta "crear orden falla → venta CANCELADA/CREATE_FAILED".
 
 - **Fetch de catálogo:** el hook vivo es `useCatalogSections` (`src/hooks/providers/`), que
-  compone `getCollections` + `getCollection` de `lib/providers/endpoints/catalog`. No hay un
-  `useCatalog` genérico (existía uno roto y se eliminó).
+  lee el **árbol** (`getCatalogTree` → `GET /pin-hype/catalog`) y lo aplana: cada colección
+  con productos propios es una sección, a cualquier profundidad. No hay un `useCatalog`
+  genérico (existía uno roto y se eliminó).
+  **OJO:** antes componía `getCollections` + `getCollection`, que solo miran el primer nivel;
+  las colecciones cuyos productos viven en sub-colecciones (p. ej. Console → PlayStation)
+  quedaban con `products: []` y se descartaban, así que **nunca se mostraban**. No vuelvas a
+  ese patrón.
 - **Sistema de componentes: `shadcn/ui`** (Radix, en `src/components/ui/`). Mantine se
   eliminó por completo (código y dependencias `@mantine/*` + `@emotion/react`); no lo
   reintroduzcas. Para animaciones usa Tailwind (`tailwindcss-animate`) o los primitivos de

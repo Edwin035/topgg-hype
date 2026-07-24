@@ -20,6 +20,7 @@ import {
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { checkout } from "@/lib/api/checkout";
+import { PIN_HYPE_DEFAULTS } from "@/lib/api/http";
 
 type CheckoutPageState = {
   product?: Product;
@@ -219,8 +220,8 @@ const CheckoutPage = () => {
       const res = await checkout({
         productId: product.providerProductId,
         quantity,
-        countryCode: product.countryCode || "CO",
-        currencyCode: product.salesCurrencyCode || "COP",
+        countryCode: product.countryCode || PIN_HYPE_DEFAULTS.country,
+        currencyCode: product.salesCurrencyCode || PIN_HYPE_DEFAULTS.currency,
       });
 
       if (timer) {
@@ -416,7 +417,11 @@ const CheckoutPage = () => {
                     Confirmar Pago
                   </span>
                   , se creará tu orden y te llevaremos a Binance Pay. El cobro es
-                  en USDT a la tasa vigente; verás el monto exacto antes de pagar.
+                  en USDT
+                  {PIN_HYPE_DEFAULTS.currency === "USD"
+                    ? " (1 USDT = 1 USD, mismo monto que ves)"
+                    : " a la tasa vigente"}
+                  ; verás el monto exacto antes de pagar.
                 </div>
 
                 <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
@@ -533,8 +538,9 @@ const CheckoutPage = () => {
                   </span>
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  El cobro es en USDT. Tasa aplicada: 1 USDT ={" "}
-                  {payInfo.usdtCopRate.toLocaleString("es-CO")} COP.
+                  {payInfo.usdtCopRate === 1
+                    ? "USDT está anclado al dólar: pagas exactamente el monto que ves."
+                    : `El cobro es en USDT. Tasa aplicada: 1 USDT = ${payInfo.usdtCopRate.toLocaleString("es-CO")} COP.`}
                 </p>
               </div>
 

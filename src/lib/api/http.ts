@@ -6,7 +6,7 @@ export const STORE_TOKEN_KEY = "toplevel_access_token";
 
 export const PIN_HYPE_DEFAULTS = {
   country: import.meta.env.VITE_PIN_HYPE_COUNTRY?.trim() || "CO",
-  currency: import.meta.env.VITE_PIN_HYPE_CURRENCY?.trim() || "COP",
+  currency: import.meta.env.VITE_PIN_HYPE_CURRENCY?.trim() || "USD",
   language: import.meta.env.VITE_PIN_HYPE_LANGUAGE?.trim() || "es",
   freeFireCollectionId: Number(import.meta.env.VITE_FREE_FIRE_COLLECTION_ID || 2),
 };
