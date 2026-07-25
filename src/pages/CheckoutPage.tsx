@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { checkout } from "@/lib/api/checkout";
 import { PIN_HYPE_DEFAULTS } from "@/lib/api/http";
+import { formatMoney } from "@/lib/utils";
 
 type CheckoutPageState = {
   product?: Product;
@@ -276,7 +277,7 @@ const CheckoutPage = () => {
           Método: PIN Hype · Cantidad: {quantity} · Pago: Binance · Total:{" "}
           <span className="font-semibold text-foreground">
             {product.currencySymbol || "$"}
-            {total.toFixed(2)}
+            {formatMoney(total)}
           </span>
         </p>
 
@@ -391,7 +392,7 @@ const CheckoutPage = () => {
                   <p className="text-sm text-muted-foreground">Precio unitario</p>
                   <p className="text-lg font-bold text-foreground">
                     {product.currencySymbol || "$"}
-                    {product.price.toFixed(2)}
+                    {formatMoney(product.price)}
                   </p>
                 </div>
 
@@ -399,7 +400,7 @@ const CheckoutPage = () => {
                   <p className="text-sm text-muted-foreground">SubTotal</p>
                   <p className="text-lg font-bold text-foreground">
                     {product.currencySymbol || "$"}
-                    {subtotal.toFixed(2)}
+                    {formatMoney(subtotal)}
                   </p>
                 </div>
 
@@ -407,7 +408,7 @@ const CheckoutPage = () => {
                   <p className="text-sm text-muted-foreground">Total</p>
                   <p className="text-2xl font-bold text-neon-green">
                     {product.currencySymbol || "$"}
-                    {total.toFixed(2)}
+                    {formatMoney(total)}
                   </p>
                 </div>
 

@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { formatMoney } from '@/lib/utils';
 
 export type Product = {
   id: number;
@@ -30,7 +31,7 @@ type ProductCardProps = Product & {
 };
 
 function formatPrice(price: number, symbol = '$') {
-  return `${symbol}${price.toFixed(2)}`;
+  return `${symbol}${formatMoney(price)}`;
 }
 
 const ProductCard = ({

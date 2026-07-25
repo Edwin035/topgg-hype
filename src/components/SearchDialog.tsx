@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Search, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { formatMoney } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -89,7 +90,7 @@ const SearchDialog = ({ isOpen, onClose }: SearchDialogProps) => {
                   </div>
                   <div className="text-right flex-shrink-0">
                     <span className="text-xs sm:text-sm font-bold text-primary">
-                      ${product.discountPrice.toFixed(2)}
+                      ${formatMoney(product.discountPrice)}
                     </span>
                     {product.discount && (
                       <span className="block text-[10px] sm:text-xs text-neon-green">

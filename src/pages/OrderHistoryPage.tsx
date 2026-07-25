@@ -4,6 +4,7 @@
 // ==============================
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/Auth/AuthProvider";
+import { formatMoney } from "@/lib/utils";
 import { searchMyOrders, type MyOrdersSearchBody } from "@/lib/api/sales";
 import { toast } from "sonner";
 import { Package, Calendar, ChevronDown, ChevronUp, Eye } from "lucide-react";
@@ -163,10 +164,11 @@ function formatAmountSmart(row: ApiSaleItem) {
       return new Intl.NumberFormat(undefined, {
         style: "currency",
         currency: row.currencyCode.toUpperCase(),
-        maximumFractionDigits: 2,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 3, // los productos propios pueden llevar 3 decimales
       }).format(amount);
     } catch {
-      return `${amount.toFixed(2)} ${row.currencyCode.toUpperCase()}`;
+      return `${formatMoney(amount)} ${row.currencyCode.toUpperCase()}`;
     }
   }
 

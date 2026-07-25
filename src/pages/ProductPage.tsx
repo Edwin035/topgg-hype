@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/components/Auth/AuthProvider";
+import { formatMoney } from "@/lib/utils";
 import { ChevronLeft, Minus, Plus } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -83,7 +84,7 @@ function buildProductFromApi(apiProduct: ProviderProduct): Product {
 }
 
 function formatPrice(price: number, symbol = "$") {
-  return `${symbol}${price.toFixed(2)}`;
+  return `${symbol}${formatMoney(price)}`;
 }
 
 const ProductPage = () => {

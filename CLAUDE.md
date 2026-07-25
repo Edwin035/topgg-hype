@@ -200,9 +200,13 @@ Backend con `JwtAuthGuard` **global** (`APP_GUARD`); lo público lleva `@Public(
   productos propios es una sección, a cualquier profundidad. No hay un `useCatalog` genérico
   (existía uno roto y se eliminó).
   **OJO:** `getCatalogTree` apunta a **`/catalog`** (backend, `StorefrontModule`), que agrega
-  el árbol de Hype **+ los productos propios** (sección "Gift Cards" por defecto,
-  `STOREFRONT_OWN_SECTION_NAME`). NO vuelvas a `/pin-hype/catalog` o desaparecen los productos
-  propios de la tienda.
+  el árbol de Hype **+ los productos propios agrupados por su `Category`** (una sección por
+  categoría, ordenadas por `order` y luego alfabético). NO vuelvas a `/pin-hype/catalog` o
+  desaparecen los productos propios.
+- **Categorías (productos propios):** cada `OwnProduct` tiene una `Category` **obligatoria**
+  (tabla propia, nombre único case-insensitive). Se gestionan en el panel (`/categories`, solo
+  ADMIN: crear/renombrar/borrar-si-vacía). En la home cada categoría es una sección. El costo
+  de cada código de inventario (`ProductCode.cost`) también es **obligatorio** al cargar.
   **OJO:** antes componía `getCollections` + `getCollection`, que solo miran el primer nivel;
   las colecciones cuyos productos viven en sub-colecciones (p. ej. Console → PlayStation)
   quedaban con `products: []` y se descartaban, así que **nunca se mostraban**. No vuelvas a

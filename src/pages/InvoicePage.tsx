@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { Copy, ExternalLink, Check, ChevronLeft } from "lucide-react";
+import { formatMoney } from "@/lib/utils";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import type { Product } from "@/components/ProductCard";
@@ -216,7 +217,7 @@ const InvoicePage = () => {
                   </p>
                   <p className="font-semibold text-foreground">
                     {currencySymbol}
-                    {productPrice.toFixed(2)}
+                    {formatMoney(productPrice)}
                   </p>
                 </div>
 
@@ -233,7 +234,7 @@ const InvoicePage = () => {
                   <p className="text-xs text-muted-foreground">Total</p>
                   <p className="font-bold text-neon-green">
                     {currencySymbol}
-                    {total.toFixed(2)}
+                    {formatMoney(total)}
                   </p>
                 </div>
               </div>
