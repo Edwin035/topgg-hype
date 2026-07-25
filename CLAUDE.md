@@ -84,6 +84,13 @@ Orden de providers en `src/App.tsx`:
 **Regla de oro:** el pin de Hype (`pre-redeem`) NO se canjea hasta que el pago está
 verificado por webhook. Antes de pagar, la venta vive `PENDIENTE` sin pines.
 
+**Dos orígenes de venta (`Sale.origen`):** `HYPE` (id de producto < 1.000.000 → se entrega con
+`pre-redeem` contra el proveedor) y `PROPIO` (id >= 1.000.000 → se entrega asignando un
+**código del inventario local**, sin tocar Hype). El backend ramifica por origen en
+`purchase()` (precio de la BD, moneda USD, stock = códigos libres) y en `fulfill()` (asigna N
+códigos con lock por producto — `OwnFulfillmentService`, a prueba de doble venta). Ver la
+sección de productos propios más abajo.
+
 1. `CheckoutPage` → `checkout()` (`src/lib/api/checkout.ts` → `POST /checkout`). El backend
    valida el precio real contra el catálogo de Hype (el cliente **no** envía precios),
    **pre-chequea stock**, convierte la moneda de venta a USDT (USD va **1:1**, sin tasa
@@ -189,9 +196,13 @@ Backend con `JwtAuthGuard` **global** (`APP_GUARD`); lo público lleva `@Public(
   desplegado; en local se prueba hasta "crear orden falla → venta CANCELADA/CREATE_FAILED".
 
 - **Fetch de catálogo:** el hook vivo es `useCatalogSections` (`src/hooks/providers/`), que
-  lee el **árbol** (`getCatalogTree` → `GET /pin-hype/catalog`) y lo aplana: cada colección
-  con productos propios es una sección, a cualquier profundidad. No hay un `useCatalog`
-  genérico (existía uno roto y se eliminó).
+  lee el **árbol** (`getCatalogTree` → `GET /catalog`) y lo aplana: cada colección con
+  productos propios es una sección, a cualquier profundidad. No hay un `useCatalog` genérico
+  (existía uno roto y se eliminó).
+  **OJO:** `getCatalogTree` apunta a **`/catalog`** (backend, `StorefrontModule`), que agrega
+  el árbol de Hype **+ los productos propios** (sección "Gift Cards" por defecto,
+  `STOREFRONT_OWN_SECTION_NAME`). NO vuelvas a `/pin-hype/catalog` o desaparecen los productos
+  propios de la tienda.
   **OJO:** antes componía `getCollections` + `getCollection`, que solo miran el primer nivel;
   las colecciones cuyos productos viven en sub-colecciones (p. ej. Console → PlayStation)
   quedaban con `products: []` y se descartaban, así que **nunca se mostraban**. No vuelvas a

@@ -79,9 +79,16 @@ export async function getProductStock(productId: number, signal?: AbortSignal) {
   );
 }
 
-/** Árbol completo del catálogo (colecciones anidadas con sus productos). */
+/**
+ * Árbol completo del catálogo (colecciones anidadas con sus productos).
+ *
+ * Apunta al catálogo AGREGADO del backend (`/catalog`), que compone el árbol de
+ * Hype + los productos propios en la misma forma. Antes pegaba directo a
+ * `/pin-hype/catalog` (solo Hype); no vuelvas a ese endpoint o desaparecen los
+ * productos propios de la tienda.
+ */
 export async function getCatalogTree(signal?: AbortSignal) {
-  return http<ProviderCollection[]>("/pin-hype/catalog", {
+  return http<ProviderCollection[]>("/catalog", {
     method: "GET",
     signal,
     query: hypeQuery,

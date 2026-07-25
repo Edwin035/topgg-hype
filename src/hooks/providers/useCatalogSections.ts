@@ -36,6 +36,9 @@ function sortProductsNatural(products?: ProviderProduct[]): ProviderProduct[] {
  * Aplana el ÁRBOL del catálogo a secciones: cada colección con productos
  * propios es una sección, sin importar a qué profundidad esté.
  *
+ * El árbol viene de `GET /catalog` (backend), que YA agrega Hype + los productos
+ * propios; aquí solo se aplana y se filtra por moneda.
+ *
  * OJO: antes esto se armaba con /catalog/collections + /collections/:id, que
  * solo mira el primer nivel. Las colecciones cuyos productos viven en
  * sub-colecciones (p. ej. Console → PlayStation) quedaban con `products: []`
