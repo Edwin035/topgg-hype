@@ -23,6 +23,8 @@ export type Product = {
   partnerCostPrice?: number;
   partnerCostPercent?: number;
   discountPercent?: number | null;
+  /** Producto propio: 0 = venta bajo pedido (entrega tras el pago). */
+  stock?: number;
 };
 
 type ProductCardProps = Product & {
@@ -48,7 +50,11 @@ const ProductCard = ({
     description,
     isAvailable = true,
     bonusLabel,
+    stock,
   } = product;
+
+  // Producto propio sin códigos libres: se vende bajo pedido (entrega tras pago).
+  const bajoPedido = stock === 0;
 
   return (
     <article className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg">
@@ -72,7 +78,16 @@ const ProductCard = ({
             </p>
           ) : null}
 
-          {bonusLabel ? <Badge variant="secondary">{bonusLabel}</Badge> : null}
+          <div className="flex flex-wrap gap-1.5">
+            {bonusLabel ? (
+              <Badge variant="secondary">{bonusLabel}</Badge>
+            ) : null}
+            {bajoPedido ? (
+              <Badge className="bg-amber-500/90 text-white hover:bg-amber-500/90">
+                Bajo pedido
+              </Badge>
+            ) : null}
+          </div>
         </div>
 
         <div className="flex items-end gap-2">
@@ -94,6 +109,12 @@ const ProductCard = ({
         >
           {buying ? 'Procesando...' : isAvailable ? 'Comprar ahora' : 'No disponible'}
         </Button>
+
+        {bajoPedido ? (
+          <p className="text-center text-[11px] text-muted-foreground">
+            Bajo pedido · se entrega tras confirmar el pago
+          </p>
+        ) : null}
       </div>
     </article>
   );

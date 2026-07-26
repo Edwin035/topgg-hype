@@ -75,6 +75,7 @@ function buildProduct(
     isAvailable: product.isAvailable !== false,
     countryCode: product.countryCode,
     salesCurrencyCode: product.salesCurrencyCode,
+    stock: product.stock, // propios: 0 = bajo pedido
     bonusLabel:
       nameLower.includes("bonus") ||
       nameLower.includes("bono") ||

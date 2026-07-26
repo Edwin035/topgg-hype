@@ -57,6 +57,7 @@ function buildProductFromApi(apiProduct: ProviderProduct): Product {
     isAvailable: apiProduct.isAvailable !== false,
     countryCode: apiProduct.countryCode,
     salesCurrencyCode: apiProduct.salesCurrencyCode,
+    stock: apiProduct.stock, // propios: 0 = bajo pedido
     bonusLabel:
       nameLower.includes("bonus") ||
       nameLower.includes("bono") ||

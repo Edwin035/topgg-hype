@@ -20,6 +20,12 @@ export interface ProviderProduct {
   salesCurrencySymbol?: string;
   createadAt?: string | null;
   tags?: string[];
+  /**
+   * Solo productos PROPIOS: códigos disponibles ahora. `0` = venta bajo pedido
+   * (se entrega tras el pago cuando el gestor asigna el código). Los de Hype no
+   * lo traen (`undefined`).
+   */
+  stock?: number;
 }
 
 export interface ProviderCollection {
