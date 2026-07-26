@@ -1,6 +1,7 @@
 // src/components/ProductSection.tsx
 import { Link } from 'react-router-dom';
 import ProductCard, { type Product } from './ProductCard';
+import { ProductGridSkeleton } from './CatalogSkeleton';
 import { ChevronRight } from 'lucide-react';
 
 interface ProductSectionProps {
@@ -45,7 +46,7 @@ const ProductSection = ({
         </div>
 
         {loading ? (
-          <div className="py-10 text-center text-muted-foreground">Cargando productos...</div>
+          <ProductGridSkeleton />
         ) : error ? (
           <div className="py-10 text-center text-destructive">{error}</div>
         ) : products.length === 0 ? (

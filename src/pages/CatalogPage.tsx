@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
+import { ProductGridSkeleton } from "@/components/CatalogSkeleton";
 import { Search, Filter, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -157,7 +158,7 @@ const CatalogPage = () => {
           </div>
 
           {loading ? (
-            <div className="text-center py-16">Cargando productos...</div>
+            <ProductGridSkeleton count={8} />
           ) : error ? (
             <div className="text-center py-16 text-red-500">{error}</div>
           ) : filteredProducts.length > 0 ? (

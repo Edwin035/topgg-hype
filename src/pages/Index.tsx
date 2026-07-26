@@ -8,6 +8,7 @@ import PartnerBanner from "@/components/PartnerBanner";
 import FAQSection from "@/components/FAQSection";
 import FeaturesBar from "@/components/FeaturesBar";
 import Footer from "@/components/Footer";
+import { CatalogSkeleton } from "@/components/CatalogSkeleton";
 import { useCatalogSections } from "@/hooks/providers/useCatalogSections";
 import type { Product } from "@/components/ProductCard";
 import type {
@@ -176,13 +177,7 @@ const Index = () => {
       <FeaturesBar />
 
       {loading ? (
-        <section className="py-12 md:py-16">
-          <div className="container mx-auto px-4">
-            <div className="py-10 text-center text-muted-foreground">
-              Cargando catálogo...
-            </div>
-          </div>
-        </section>
+        <CatalogSkeleton />
       ) : error ? (
         <section className="py-12 md:py-16">
           <div className="container mx-auto px-4">
