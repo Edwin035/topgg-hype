@@ -55,6 +55,7 @@ const CatalogPage = () => {
       countryCode: product.countryCode,
       salesCurrencyCode: product.salesCurrencyCode,
       stock: product.stock, // propios: 0 = bajo pedido
+      categoryId: product.categoryId, // propios: para filtrar por categoría
       bonusLabel:
         nameLower.includes("bonus") ||
         nameLower.includes("bono") ||
@@ -81,11 +82,31 @@ const CatalogPage = () => {
     );
   }, [catalogData]);
 
+  // Filtro por categoría propia (viene del banner: /catalogo?categoria=:id).
+  const categoriaId = searchParams.get("categoria")
+    ? Number(searchParams.get("categoria"))
+    : null;
+  // El nombre de la categoría = nombre de su sección en el árbol (id = base + catId).
+  const OWN_SECTION_ID_BASE = 900_000_000;
+  const categoriaName =
+    categoriaId != null
+      ? catalogData?.find((c) => c.id === OWN_SECTION_ID_BASE + categoriaId)
+          ?.name
+      : undefined;
+
+  const clearCategoria = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("categoria");
+    setSearchParams(next);
+  };
+
   const filteredProducts = useMemo(() => {
-    return allProducts.filter((product) =>
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()),
+    return allProducts.filter(
+      (product) =>
+        product.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        (categoriaId == null || product.categoryId === categoriaId),
     );
-  }, [allProducts, searchQuery]);
+  }, [allProducts, searchQuery, categoriaId]);
 
   const clearFilters = () => {
     setSelectedPlatform("Todos");
@@ -147,7 +168,7 @@ const CatalogPage = () => {
         </div>
 
         <main>
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
             <p className="text-sm text-muted-foreground">
               Mostrando{" "}
               <span className="text-foreground font-medium">
@@ -155,6 +176,15 @@ const CatalogPage = () => {
               </span>{" "}
               productos
             </p>
+            {categoriaId != null ? (
+              <button
+                type="button"
+                onClick={clearCategoria}
+                className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20">
+                {categoriaName ? `Categoría: ${categoriaName}` : "Categoría"}
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
           </div>
 
           {loading ? (

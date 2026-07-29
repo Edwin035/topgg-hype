@@ -26,6 +26,8 @@ export interface ProviderProduct {
    * lo traen (`undefined`).
    */
   stock?: number;
+  /** Solo productos PROPIOS: id de su categoría (para filtrar el catálogo). */
+  categoryId?: number;
 }
 
 export interface ProviderCollection {

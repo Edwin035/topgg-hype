@@ -1,6 +1,5 @@
-import { ChevronRight, Zap, Gamepad2, CreditCard } from "lucide-react";
+import { ChevronRight, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "./Auth/AuthProvider";
 import {
   Carousel,
   CarouselContent,
@@ -10,53 +9,87 @@ import {
 import { useCallback, useEffect, useState } from "react";
 
 import heroImage1 from "@/assets/hero-gaming.jpg";
-import heroImage2 from "@/assets/hero-slide-2.jpg";
-import heroImage3 from "@/assets/hero-slide-3.jpg";
+import { getBanners, type Banner, type BannerButton } from "@/lib/api/banners";
 
-const slides = [
-  {
-    image: heroImage1,
-    badge: "Oferta Especial",
-    badgeIcon: Zap,
-    titleTop: "NIVEL FINAL",
-    titleBottom: "Máximo descuento",
-    description: "Hasta <strong>15% OFF</strong> en todos tus juegos favoritos",
-    ctaPrimary: "Comprar Ahora",
-    ctaSecondary: "Ver Catálogo",
-  },
-  {
-    image: heroImage2,
-    badge: "Nuevos Lanzamientos",
-    badgeIcon: Gamepad2,
-    titleTop: "LOS MÁS JUGADOS",
-    titleBottom: "Éxitos del momento",
-    description:
-      "Descubre los juegos <strong>más populares</strong> de la temporada",
-    ctaPrimary: "Explorar",
-    ctaSecondary: "Ver Catálogo",
-  },
-  {
-    image: heroImage3,
-    badge: "Gift Cards",
-    badgeIcon: CreditCard,
-    titleTop: "TARJETAS REGALO",
-    titleBottom: "Steam · Xbox · PSN",
-    description:
-      "Las mejores tarjetas al <strong>mejor precio</strong> del mercado",
-    ctaPrimary: "Ver Tarjetas",
-    ctaSecondary: "Ver Catálogo",
-  },
-];
+/** Modelo de slide ya listo para pintar (banner del API o fallback). */
+interface Slide {
+  background: string;
+  character: string | null;
+  badge: string | null;
+  titleTop: string | null;
+  titleBottom: string | null;
+  description: string | null;
+  primary: { label: string; href: string } | null;
+  secondary: { label: string; href: string } | null;
+}
+
+/** Resuelve a dónde lleva un botón según su tipo (o null si no hay botón). */
+function ctaHref(cta: BannerButton): string | null {
+  if (!cta || cta.type === "NONE" || !cta.value) return null;
+  switch (cta.type) {
+    case "PRODUCT":
+      return `/producto/${cta.value}`;
+    case "CATEGORY":
+      return `/catalogo?categoria=${cta.value}`;
+    case "PAGE":
+      if (cta.value === "aliados") return "/aliados";
+      if (cta.value === "home") return "/";
+      return "/catalogo";
+    default:
+      return null;
+  }
+}
+
+function toButton(cta: BannerButton): Slide["primary"] {
+  const href = ctaHref(cta);
+  if (!href) return null;
+  return { label: cta.label?.trim() || "Ver más", href };
+}
+
+function bannerToSlide(b: Banner): Slide {
+  return {
+    background: b.backgroundUrl,
+    character: b.characterUrl,
+    badge: b.badge,
+    titleTop: b.titleTop,
+    titleBottom: b.titleBottom,
+    description: b.description,
+    primary: toButton(b.primary),
+    secondary: toButton(b.secondary),
+  };
+}
+
+/** Slide por defecto si no hay banners activos (o falla la carga). */
+const DEFAULT_SLIDE: Slide = {
+  background: heroImage1,
+  character: null,
+  badge: "Oferta Especial",
+  titleTop: "NIVEL FINAL",
+  titleBottom: "Máximo descuento",
+  description: "Hasta 15% OFF en todos tus juegos favoritos",
+  primary: { label: "Comprar ahora", href: "/catalogo" },
+  secondary: { label: "Ver catálogo", href: "/catalogo" },
+};
 
 const HeroSection = () => {
   const navigate = useNavigate();
+  const [slides, setSlides] = useState<Slide[] | null>(null);
 
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
 
-  const handleBuyClick = () => {
-    navigate("/catalogo");
-  };
+  useEffect(() => {
+    const controller = new AbortController();
+    getBanners(controller.signal)
+      .then((banners) => {
+        if (controller.signal.aborted) return;
+        setSlides(banners.length ? banners.map(bannerToSlide) : [DEFAULT_SLIDE]);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setSlides([DEFAULT_SLIDE]);
+      });
+    return () => controller.abort();
+  }, []);
 
   const onSelect = useCallback(() => {
     if (!api) return;
@@ -72,14 +105,17 @@ const HeroSection = () => {
     };
   }, [api, onSelect]);
 
-  // Auto-play
+  // Auto-play (solo si hay más de un slide).
   useEffect(() => {
-    if (!api) return;
-    const interval = setInterval(() => {
-      api.scrollNext();
-    }, 5000);
+    if (!api || (slides?.length ?? 0) <= 1) return;
+    const interval = setInterval(() => api.scrollNext(), 5000);
     return () => clearInterval(interval);
-  }, [api]);
+  }, [api, slides]);
+
+  // Mientras carga, reserva el alto para no mover el layout.
+  if (!slides) {
+    return <section className="min-h-[500px] bg-background md:min-h-[600px]" />;
+  }
 
   return (
     <section className="relative">
@@ -87,50 +123,74 @@ const HeroSection = () => {
         <CarouselContent className="ml-0">
           {slides.map((slide, index) => (
             <CarouselItem key={index} className="pl-0">
-              <div className="relative min-h-[500px] md:min-h-[600px] overflow-hidden">
-                {/* Background Image */}
+              <div className="relative min-h-[500px] overflow-hidden md:min-h-[600px]">
+                {/* Fondo */}
                 <div
                   className="absolute inset-0 bg-cover bg-center"
-                  style={{ backgroundImage: `url(${slide.image})` }}>
+                  style={{ backgroundImage: `url(${slide.background})` }}>
                   <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-transparent" />
                   <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
                 </div>
 
-                {/* Content */}
-                <div className="relative container mx-auto px-4 py-16 md:py-24 flex flex-col justify-center items-center md:items-start min-h-[500px] md:min-h-[600px]">
+                {/* Personaje (derecha) */}
+                {slide.character ? (
+                  <img
+                    src={slide.character}
+                    alt=""
+                    className="pointer-events-none absolute bottom-0 right-0 hidden h-[90%] w-auto object-contain md:block"
+                  />
+                ) : null}
+
+                {/* Contenido */}
+                <div className="relative container mx-auto flex min-h-[500px] flex-col items-center justify-center px-4 py-16 md:min-h-[600px] md:items-start md:py-24">
                   <div className="max-w-xl text-center md:text-left">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/20 rounded-full mb-6 animate-glow">
-                      <slide.badgeIcon className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-medium text-primary">
-                        {slide.badge}
-                      </span>
-                    </div>
+                    {slide.badge ? (
+                      <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-primary/20 px-4 py-2 animate-glow">
+                        <Zap className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium text-primary">
+                          {slide.badge}
+                        </span>
+                      </div>
+                    ) : null}
 
-                    <h1 className="text-4xl md:text-6xl font-display font-bold mb-4 leading-tight">
-                      <span className="gradient-text">{slide.titleTop}</span>
-                      <br />
-                      <span className="text-foreground">
-                        {slide.titleBottom}
-                      </span>
-                    </h1>
+                    {slide.titleTop || slide.titleBottom ? (
+                      <h1 className="mb-4 text-4xl font-display font-bold leading-tight md:text-6xl">
+                        {slide.titleTop ? (
+                          <span className="gradient-text">
+                            {slide.titleTop}
+                          </span>
+                        ) : null}
+                        {slide.titleTop && slide.titleBottom ? <br /> : null}
+                        {slide.titleBottom ? (
+                          <span className="text-foreground">
+                            {slide.titleBottom}
+                          </span>
+                        ) : null}
+                      </h1>
+                    ) : null}
 
-                    <p
-                      className="text-lg md:text-xl text-muted-foreground mb-8"
-                      dangerouslySetInnerHTML={{ __html: slide.description }}
-                    />
+                    {slide.description ? (
+                      <p className="mb-8 text-lg text-muted-foreground md:text-xl">
+                        {slide.description}
+                      </p>
+                    ) : null}
 
-                    <div className="flex flex-wrap gap-4 justify-center md:justify-start">
-                      <button
-                        onClick={handleBuyClick}
-                        className="btn-gaming flex items-center gap-2">
-                        {slide.ctaPrimary}
-                        <ChevronRight className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => navigate("/catalogo")}
-                        className="px-6 py-2 rounded-lg font-semibold text-sm uppercase tracking-wider border border-primary text-primary hover:bg-primary/10 transition-all duration-300">
-                        {slide.ctaSecondary}
-                      </button>
+                    <div className="flex flex-wrap justify-center gap-4 md:justify-start">
+                      {slide.primary ? (
+                        <button
+                          onClick={() => navigate(slide.primary!.href)}
+                          className="btn-gaming flex items-center gap-2">
+                          {slide.primary.label}
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                      ) : null}
+                      {slide.secondary ? (
+                        <button
+                          onClick={() => navigate(slide.secondary!.href)}
+                          className="rounded-lg border border-primary px-6 py-2 text-sm font-semibold uppercase tracking-wider text-primary transition-all duration-300 hover:bg-primary/10">
+                          {slide.secondary.label}
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -140,23 +200,25 @@ const HeroSection = () => {
         </CarouselContent>
 
         {/* Dots */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2 z-10">
-          {slides.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => api?.scrollTo(index)}
-              className={`h-2 rounded-full transition-all duration-300 ${
-                current === index
-                  ? "w-8 bg-primary"
-                  : "w-2 bg-muted-foreground/40 hover:bg-muted-foreground/60"
-              }`}
-            />
-          ))}
-        </div>
+        {slides.length > 1 ? (
+          <div className="absolute bottom-8 left-1/2 z-10 flex -translate-x-1/2 gap-2">
+            {slides.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => api?.scrollTo(index)}
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  current === index
+                    ? "w-8 bg-primary"
+                    : "w-2 bg-muted-foreground/40 hover:bg-muted-foreground/60"
+                }`}
+              />
+            ))}
+          </div>
+        ) : null}
       </Carousel>
 
-      {/* Bottom gradient */}
-      <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+      {/* Gradiente inferior */}
+      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent" />
     </section>
   );
 };

@@ -25,6 +25,8 @@ export type Product = {
   discountPercent?: number | null;
   /** Producto propio: 0 = venta bajo pedido (entrega tras el pago). */
   stock?: number;
+  /** Producto propio: id de su categoría (para filtrar el catálogo). */
+  categoryId?: number;
 };
 
 type ProductCardProps = Product & {
