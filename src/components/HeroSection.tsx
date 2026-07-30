@@ -15,6 +15,9 @@ import { getBanners, type Banner, type BannerButton } from "@/lib/api/banners";
 interface Slide {
   background: string;
   character: string | null;
+  characterScale: number;
+  characterOffsetX: number;
+  characterOffsetY: number;
   badge: string | null;
   titleTop: string | null;
   titleBottom: string | null;
@@ -50,6 +53,9 @@ function bannerToSlide(b: Banner): Slide {
   return {
     background: b.backgroundUrl,
     character: b.characterUrl,
+    characterScale: b.characterScale ?? 90,
+    characterOffsetX: b.characterOffsetX ?? 0,
+    characterOffsetY: b.characterOffsetY ?? 0,
     badge: b.badge,
     titleTop: b.titleTop,
     titleBottom: b.titleBottom,
@@ -63,6 +69,9 @@ function bannerToSlide(b: Banner): Slide {
 const DEFAULT_SLIDE: Slide = {
   background: heroImage1,
   character: null,
+  characterScale: 90,
+  characterOffsetX: 0,
+  characterOffsetY: 0,
   badge: "Oferta Especial",
   titleTop: "NIVEL FINAL",
   titleBottom: "Máximo descuento",
@@ -132,12 +141,18 @@ const HeroSection = () => {
                   <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
                 </div>
 
-                {/* Personaje (derecha) */}
+                {/* Personaje (derecha). Escala y offset configurables por banner:
+                    height = % del hero; translate = % del propio personaje
+                    (X: + derecha / − izquierda; Y: + arriba / − abajo). */}
                 {slide.character ? (
                   <img
                     src={slide.character}
                     alt=""
-                    className="pointer-events-none absolute bottom-0 right-0 hidden h-[90%] w-auto object-contain md:block"
+                    style={{
+                      height: `${slide.characterScale}%`,
+                      transform: `translate(${slide.characterOffsetX}%, ${-slide.characterOffsetY}%)`,
+                    }}
+                    className="pointer-events-none absolute bottom-0 right-0 hidden w-auto object-contain md:block"
                   />
                 ) : null}
 

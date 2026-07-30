@@ -14,6 +14,12 @@ export interface Banner {
   order: number;
   backgroundUrl: string;
   characterUrl: string | null;
+  /** Ajuste del personaje en el hero. scale: alto como % del hero. offsetX/offsetY:
+   *  desplazamiento en % del propio personaje (X: + derecha; Y: + arriba).
+   *  Opcionales: backends viejos (sin desplegar) no los envían -> se usa el default. */
+  characterScale?: number;
+  characterOffsetX?: number;
+  characterOffsetY?: number;
   badge: string | null;
   titleTop: string | null;
   titleBottom: string | null;
