@@ -1,7 +1,11 @@
 import { Gamepad2, Monitor, Gift, CreditCard, Tv, MessageCircle, HelpCircle, Clock, Instagram, Handshake } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useSettings } from '@/hooks/useSettings';
+import { waLink, SUPPORT_TEXT } from '@/lib/support';
 
 const Footer = () => {
+  const { data } = useSettings();
+  const wa = waLink(data?.supportPhone, SUPPORT_TEXT);
   return (
     <footer className="bg-card border-t border-border">
       <div className="container mx-auto px-4 py-12">
@@ -68,7 +72,12 @@ const Footer = () => {
             <ul className="space-y-2">
               <li className="flex items-center gap-2">
                 <MessageCircle className="h-4 w-4 text-pink-500" />
-                <a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                <a
+                  href={wa || "#"}
+                  {...(wa
+                    ? { target: "_blank", rel: "noopener noreferrer" }
+                    : {})}
+                  className="text-sm text-muted-foreground hover:text-primary transition-colors">
                   Contacto
                 </a>
               </li>

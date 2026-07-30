@@ -10,6 +10,7 @@ import { AuthProvider } from "./components/Auth/AuthProvider";
 import ScrollToTop from "./components/ScrollToTop";
 import AuthDialog from "./components/Auth/AuthDialog";
 import AuthRouteListener from "./contexts/AuthRouteListener";
+import SupportButton from "./components/SupportButton";
 
 import Index from "./pages/Index";
 import ProductPage from "./pages/ProductPage";
@@ -118,6 +119,8 @@ const App = () => (
 
               <Route path="*" element={<NotFound />} />
             </Routes>
+
+            <SupportButton />
           </BrowserRouter>
         </AuthDialogProvider>
       </AuthProvider>
