@@ -2,16 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import type { NewsPublic } from "@/lib/api/news";
 import { goToNews } from "@/lib/newsNav";
-
-function formatDate(iso: string) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("es-CO", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
+import { formatDateLong } from "@/lib/utils";
 
 export function NewsCard({ news }: { news: NewsPublic }) {
   const navigate = useNavigate();
@@ -44,7 +35,7 @@ export function NewsCard({ news }: { news: NewsPublic }) {
         </p>
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs text-muted-foreground">
-            {formatDate(news.publishFrom)}
+            {formatDateLong(news.publishFrom)}
           </span>
           <span className="text-xs font-medium text-primary group-hover:underline">
             Ver más

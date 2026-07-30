@@ -1,11 +1,17 @@
 // Popup promocional del home: muestra las imágenes de las noticias vigentes como
 // un carrusel (flechas, dots, auto-slide y swipe). Al hacer clic va a su URL.
+// Montado sobre el Dialog de shadcn (Radix): trae overlay, bloqueo de scroll del
+// body, foco atrapado, aria-modal y cierre con Escape sin reimplementarlos.
 // Solo se renderiza si está abierto Y hay noticias con imagen válida.
-import { useEffect, useMemo, useState } from "react";
-import { X } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getNews } from "@/lib/api/news";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { useNews } from "@/hooks/useNews";
 import { goToNews } from "@/lib/newsNav";
 
 interface PromoPopupProps {
@@ -23,15 +29,12 @@ function isValidImg(u: string) {
 const PromoPopup = ({ isOpen, onClose }: PromoPopupProps) => {
   const navigate = useNavigate();
   const [index, setIndex] = useState(0);
-  const [touchStartX, setTouchStartX] = useState<number | null>(null);
-  const [isSwiping, setIsSwiping] = useState(false);
+  // Refs (no estado) para el swipe: se leen de forma síncrona en el click, sin
+  // depender de que React "flushee" un setState entre pointerup y el click.
+  const touchStartXRef = useRef<number | null>(null);
+  const isSwipingRef = useRef(false);
 
-  const { data } = useQuery({
-    queryKey: ["news-public"],
-    queryFn: ({ signal }) => getNews(signal),
-    staleTime: 60_000,
-    enabled: isOpen,
-  });
+  const { data } = useNews({ enabled: isOpen });
 
   const slides: Slide[] = useMemo(() => {
     const mapped = (data ?? [])
@@ -46,67 +49,55 @@ const PromoPopup = ({ isOpen, onClose }: PromoPopupProps) => {
     return mapped.filter((s) => (seen.has(s.src) ? false : seen.add(s.src)));
   }, [data]);
 
-  // Índice válido si cambian los slides.
+  // Índice válido si cambian los slides (p. ej. refetch en background que reduce).
   useEffect(() => {
     if (index > slides.length - 1) setIndex(0);
   }, [slides.length, index]);
 
-  // Auto-slide (solo si hay más de 1).
+  // Auto-slide (solo si hay más de 1). Depende de `index`: cada navegación manual
+  // reinicia la ventana de 5s (evita el salto abrupto justo después de tocar).
   useEffect(() => {
     if (!isOpen || slides.length <= 1) return;
     const t = setInterval(
-      () => setIndex((p) => (p === slides.length - 1 ? 0 : p + 1)),
+      () => setIndex((p) => (p >= slides.length - 1 ? 0 : p + 1)),
       5000,
     );
     return () => clearInterval(t);
-  }, [isOpen, slides.length]);
-
-  // Cerrar con Escape.
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, onClose]);
+  }, [isOpen, slides.length, index]);
 
   if (!isOpen || slides.length === 0) return null;
 
-  const prev = () =>
-    setIndex((p) => (p === 0 ? slides.length - 1 : p - 1));
-  const next = () =>
-    setIndex((p) => (p === slides.length - 1 ? 0 : p + 1));
+  const prev = () => setIndex((p) => (p <= 0 ? slides.length - 1 : p - 1));
+  const next = () => setIndex((p) => (p >= slides.length - 1 ? 0 : p + 1));
 
-  // Clamp en el render: si los slides se encogen (refetch en background) antes de
-  // que el effect corrija el índice, evita leer fuera de rango y crashear.
+  // Clamp en el render: si los slides se encogen antes de que el effect corrija
+  // el índice, evita leer fuera de rango y crashear.
   const safeIndex = Math.min(index, slides.length - 1);
   const current = slides[safeIndex];
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-      <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      <div className="relative max-h-[90vh] max-w-[95vw] rounded-xl border-2 border-primary bg-card shadow-2xl">
-        <button
-          onClick={onClose}
-          className="absolute right-3 top-3 z-50 text-foreground transition-colors hover:text-primary"
-          aria-label="Cerrar">
-          <X size={22} />
-        </button>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}>
+      <DialogContent className="max-w-[95vw] gap-0 overflow-hidden border-2 border-primary bg-card p-0 sm:max-w-2xl sm:gap-0">
+        <DialogTitle className="sr-only">Promociones</DialogTitle>
+        <DialogDescription className="sr-only">
+          Novedades y promociones de la tienda
+        </DialogDescription>
 
         <div
-          className="relative flex touch-pan-y items-center justify-center p-4"
+          className="relative flex touch-pan-y items-center justify-center"
           onPointerDown={(e) => {
-            setIsSwiping(false);
-            setTouchStartX(e.clientX);
+            isSwipingRef.current = false;
+            touchStartXRef.current = e.clientX;
           }}
           onPointerUp={(e) => {
-            if (touchStartX === null) return;
-            const dx = e.clientX - touchStartX;
+            if (touchStartXRef.current === null) return;
+            const dx = e.clientX - touchStartXRef.current;
             if (Math.abs(dx) > 50) {
-              setIsSwiping(true);
+              isSwipingRef.current = true;
               if (dx > 0) prev();
               else next();
             }
@@ -116,9 +107,9 @@ const PromoPopup = ({ isOpen, onClose }: PromoPopupProps) => {
             alt={current.alt}
             loading="eager"
             onClick={() => {
-              if (!isSwiping) goToNews(navigate, current.href);
+              if (!isSwipingRef.current) goToNews(navigate, current.href);
             }}
-            className="h-auto max-h-[80vh] w-auto max-w-[90vw] cursor-pointer object-contain"
+            className="block max-h-[80vh] w-auto max-w-full cursor-pointer object-contain"
           />
 
           {slides.length > 1 ? (
@@ -126,13 +117,13 @@ const PromoPopup = ({ isOpen, onClose }: PromoPopupProps) => {
               <button
                 onClick={prev}
                 aria-label="Anterior"
-                className="absolute left-3 hidden text-3xl text-foreground transition-colors hover:text-primary md:block">
+                className="absolute left-2 top-1/2 hidden -translate-y-1/2 rounded-full bg-black/40 px-2 text-3xl leading-none text-white transition-colors hover:text-primary md:block">
                 ‹
               </button>
               <button
                 onClick={next}
                 aria-label="Siguiente"
-                className="absolute right-3 hidden text-3xl text-foreground transition-colors hover:text-primary md:block">
+                className="absolute right-2 top-1/2 hidden -translate-y-1/2 rounded-full bg-black/40 px-2 text-3xl leading-none text-white transition-colors hover:text-primary md:block">
                 ›
               </button>
             </>
@@ -140,7 +131,7 @@ const PromoPopup = ({ isOpen, onClose }: PromoPopupProps) => {
         </div>
 
         {slides.length > 1 ? (
-          <div className="mb-4 flex justify-center gap-2">
+          <div className="flex justify-center gap-2 py-3">
             {slides.map((_, i) => (
               <button
                 key={i}
@@ -152,11 +143,9 @@ const PromoPopup = ({ isOpen, onClose }: PromoPopupProps) => {
               />
             ))}
           </div>
-        ) : (
-          <div className="h-4" />
-        )}
-      </div>
-    </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
   );
 };
 

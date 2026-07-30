@@ -4,7 +4,7 @@
 // ==============================
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/Auth/AuthProvider";
-import { formatMoney } from "@/lib/utils";
+import { formatMoney, formatDateShort } from "@/lib/utils";
 import { searchMyOrders, type MyOrdersSearchBody } from "@/lib/api/sales";
 import { toast } from "sonner";
 import { Package, Calendar, ChevronDown, ChevronUp, Eye } from "lucide-react";
@@ -138,14 +138,6 @@ function badgeClass(status: HistoryItem["status"]) {
     default:
       return "bg-gray-500 text-white";
   }
-}
-// Formatea fechas ISO a DD-MM-YYYY
-function formatDate(iso: string) {
-  const d = new Date(iso);
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  return `${dd}-${mm}-${yyyy}`;
 }
 // Calcula y formatea el monto final usando la mejor fuente disponible
 function formatAmountSmart(row: ApiSaleItem) {
@@ -475,7 +467,7 @@ const OrderHistoryPage = () => {
         detail: `${product} — ${pack}`,
         paymentMethod: payment,
         total,
-        date: formatDate(s.createdAt),
+        date: formatDateShort(s.createdAt),
         status: mapStatusToLabel(s.status),
         statusRaw: s.status,
         paymentPortalRaw: s.paymentPortal ?? null,

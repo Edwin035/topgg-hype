@@ -1,17 +1,12 @@
 // "Top" de novedades: grid "Últimas Novedades" en el home. Cada tarjeta lleva a
 // la URL de la noticia. Si no hay noticias vigentes (o falla), no renderiza nada.
-import { useQuery } from "@tanstack/react-query";
-import { getNews } from "@/lib/api/news";
 import { NewsCard } from "@/components/NewsCard";
+import { useNews } from "@/hooks/useNews";
 
 type Props = { limit?: number };
 
 const NovedadesCarrusel = ({ limit }: Props) => {
-  const { data, isLoading } = useQuery({
-    queryKey: ["news-public"],
-    queryFn: ({ signal }) => getNews(signal),
-    staleTime: 60_000,
-  });
+  const { data, isLoading } = useNews();
 
   const items = (data ?? []).slice(
     0,

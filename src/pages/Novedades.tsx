@@ -1,18 +1,13 @@
 // Página pública de Novedades: todas las noticias vigentes en una grilla.
-import { useQuery } from "@tanstack/react-query";
 import { Newspaper } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { NewsCard } from "@/components/NewsCard";
-import { getNews } from "@/lib/api/news";
+import { useNews } from "@/hooks/useNews";
 
 const Novedades = () => {
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["news-public"],
-    queryFn: ({ signal }) => getNews(signal),
-    staleTime: 60_000,
-  });
+  const { data, isLoading, isError, refetch } = useNews();
 
   const items = data ?? [];
 
