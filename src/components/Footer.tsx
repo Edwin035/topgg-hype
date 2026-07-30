@@ -1,4 +1,4 @@
-import { Gamepad2, Monitor, Gift, CreditCard, Tv, MessageCircle, HelpCircle, Clock, Facebook, Instagram, Handshake } from 'lucide-react';
+import { Gamepad2, Monitor, Gift, CreditCard, Tv, MessageCircle, HelpCircle, Clock, Instagram, Handshake } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Footer = () => {
@@ -110,13 +110,11 @@ const Footer = () => {
             <h4 className="font-display font-bold text-foreground mb-4">Síguenos</h4>
             <ul className="space-y-2">
               <li>
-                <a href="#" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors">
-                  <Facebook className="h-4 w-4 text-blue-500" />
-                  Facebook
-                </a>
-              </li>
-              <li>
-                <a href="#" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors">
+                <a
+                  href="https://instagram.com/toplevelgg_"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors">
                   <Instagram className="h-4 w-4 text-pink-500" />
                   Instagram
                 </a>

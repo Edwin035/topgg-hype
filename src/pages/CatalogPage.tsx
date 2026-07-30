@@ -4,99 +4,111 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
 import { ProductGridSkeleton } from "@/components/CatalogSkeleton";
-import { Search, Filter, X } from "lucide-react";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useCatalogSections } from "@/hooks/providers/useCatalogSections";
 import { Product } from "@/hooks/providers/useProduct";
+import type {
+  ProviderCollection,
+  ProviderProduct,
+} from "@/lib/providers/endpoints/catalog";
 
-const platforms = ["Todos", "PlayStation", "Xbox", "Steam", "Mobile"];
+// Las secciones de productos propios tienen id = BASE + categoryId (ver backend,
+// StorefrontModule). Se usa para derivar el id real de categoría desde la sección.
+const OWN_SECTION_ID_BASE = 900_000_000;
+
+const pillClass = (active: boolean) =>
+  `shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+    active
+      ? "border-primary bg-primary text-primary-foreground"
+      : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
+  }`;
+
+function normalizeText(value?: string | null) {
+  return (value ?? "").trim();
+}
+
+function buildProduct(product: ProviderProduct, collection: ProviderCollection) {
+  const nameLower = product.name.toLowerCase();
+
+  return {
+    id: product.id,
+    providerProductId: product.id,
+    name: product.name,
+    image:
+      product.coverImage ||
+      product.image ||
+      collection.coverImage ||
+      collection.image ||
+      "/placeholder.svg",
+    price: Number(product.salesPrice ?? 0),
+    originalPrice:
+      typeof product.originalPrice === "number" ? product.originalPrice : null,
+    currencySymbol: product.salesCurrencySymbol || "$",
+    description:
+      normalizeText(product.description) ||
+      normalizeText(collection.description) ||
+      `Recarga oficial de ${collection.name}.`,
+    platform: "Mobile",
+    isAvailable: product.isAvailable !== false,
+    countryCode: product.countryCode,
+    salesCurrencyCode: product.salesCurrencyCode,
+    stock: product.stock, // propios: 0 = bajo pedido
+    categoryId: product.categoryId, // propios: para filtrar por categoría
+    bonusLabel:
+      nameLower.includes("bonus") ||
+      nameLower.includes("bono") ||
+      nameLower.includes("bônus")
+        ? "+ bonus"
+        : undefined,
+    termsAndConditions: normalizeText(product.termsAndConditions),
+    howToRedeem: product.howToRedeem,
+    adultsOnly: product.adultsOnly,
+    tags: product.tags ?? [],
+    partnerCostPrice: product.partnerCostPrice,
+    partnerCostPercent: product.partnerCostPercent,
+    discountPercent: product.discountPercent ?? null,
+  };
+}
 
 const CatalogPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialPlatform = searchParams.get("platform") || "Todos";
-
-  const [selectedPlatform, setSelectedPlatform] = useState(initialPlatform);
-  const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   // 🔹 Hook para traer el catálogo completo
   const { data: catalogData, loading, error } = useCatalogSections();
   const navigate = useNavigate();
-  function normalizeText(value?: string | null) {
-    return (value ?? "").trim();
-  }
 
-  function buildProduct(product: any, collection: any) {
-    const nameLower = product.name.toLowerCase();
-
-    return {
-      id: product.id,
-      providerProductId: product.id,
-      name: product.name,
-      image:
-        product.coverImage ||
-        product.image ||
-        collection.coverImage ||
-        collection.image ||
-        "/placeholder.svg",
-      price: Number(product.salesPrice ?? 0),
-      originalPrice:
-        typeof product.originalPrice === "number"
-          ? product.originalPrice
-          : null,
-      currencySymbol: product.salesCurrencySymbol || "$",
-      description:
-        normalizeText(product.description) ||
-        normalizeText(collection.description) ||
-        `Recarga oficial de ${collection.name}.`,
-      platform: "Mobile",
-      isAvailable: product.isAvailable !== false,
-      countryCode: product.countryCode,
-      salesCurrencyCode: product.salesCurrencyCode,
-      stock: product.stock, // propios: 0 = bajo pedido
-      categoryId: product.categoryId, // propios: para filtrar por categoría
-      bonusLabel:
-        nameLower.includes("bonus") ||
-        nameLower.includes("bono") ||
-        nameLower.includes("bônus")
-          ? "+ bonus"
-          : undefined,
-      termsAndConditions: normalizeText(product.termsAndConditions),
-      howToRedeem: product.howToRedeem,
-      adultsOnly: product.adultsOnly,
-      tags: product.tags ?? [],
-      partnerCostPrice: product.partnerCostPrice,
-      partnerCostPercent: product.partnerCostPercent,
-      discountPercent: product.discountPercent ?? null,
-    };
-  }
-
-  const allProducts = useMemo(() => {
-    if (!catalogData) return [];
-
-    return catalogData.flatMap((collection: any) =>
-      collection.products.map((product: any) =>
-        buildProduct(product, collection),
+  const allProducts = useMemo(
+    () =>
+      catalogData.flatMap((collection) =>
+        collection.products.map((product) => buildProduct(product, collection)),
       ),
-    );
-  }, [catalogData]);
+    [catalogData],
+  );
 
-  // Filtro por categoría propia (viene del banner: /catalogo?categoria=:id).
+  // Categorías (productos propios) para el filtro. Cada sección propia es una
+  // categoría; su id real = section.id - BASE. Se preserva el orden del catálogo.
+  const categories = useMemo(
+    () =>
+      catalogData
+        .filter(
+          (c) => c.id >= OWN_SECTION_ID_BASE && (c.products?.length ?? 0) > 0,
+        )
+        .map((c) => ({ id: c.id - OWN_SECTION_ID_BASE, name: c.name })),
+    [catalogData],
+  );
+
+  // Categoría seleccionada. También la fijan los banners: /catalogo?categoria=:id.
   const categoriaId = searchParams.get("categoria")
     ? Number(searchParams.get("categoria"))
     : null;
-  // El nombre de la categoría = nombre de su sección en el árbol (id = base + catId).
-  const OWN_SECTION_ID_BASE = 900_000_000;
-  const categoriaName =
-    categoriaId != null
-      ? catalogData?.find((c) => c.id === OWN_SECTION_ID_BASE + categoriaId)
-          ?.name
-      : undefined;
 
-  const clearCategoria = () => {
+  const setCategoria = (catId: number | null) => {
     const next = new URLSearchParams(searchParams);
-    next.delete("categoria");
+    if (catId == null) next.delete("categoria");
+    else next.set("categoria", String(catId));
     setSearchParams(next);
   };
 
@@ -108,16 +120,12 @@ const CatalogPage = () => {
     );
   }, [allProducts, searchQuery, categoriaId]);
 
-  const clearFilters = () => {
-    setSelectedPlatform("Todos");
-    setSearchQuery("");
-    setSearchParams({});
-  };
   function handleBuy(product: Product) {
     navigate(`/producto/${product.id}`, {
       state: { product },
     });
   }
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -145,27 +153,38 @@ const CatalogPage = () => {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        {/* Search and Filter Bar */}
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Buscar productos..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-card border-border"
-            />
-          </div>
-
-          <Button
-            variant="outline"
-            className="md:hidden"
-            onClick={() => setShowFilters(!showFilters)}>
-            <Filter className="h-4 w-4 mr-2" />
-            Filtros
-          </Button>
+        {/* Buscador */}
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Buscar productos..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 bg-card border-border"
+          />
         </div>
+
+        {/* Filtro por categoría */}
+        {!loading && categories.length > 0 && (
+          <div className="mb-8 flex gap-2 overflow-x-auto pb-2">
+            <button
+              type="button"
+              onClick={() => setCategoria(null)}
+              className={pillClass(categoriaId == null)}>
+              Todos
+            </button>
+            {categories.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setCategoria(c.id)}
+                className={pillClass(categoriaId === c.id)}>
+                {c.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         <main>
           <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
@@ -176,15 +195,6 @@ const CatalogPage = () => {
               </span>{" "}
               productos
             </p>
-            {categoriaId != null ? (
-              <button
-                type="button"
-                onClick={clearCategoria}
-                className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20">
-                {categoriaName ? `Categoría: ${categoriaName}` : "Categoría"}
-                <X className="h-3.5 w-3.5" />
-              </button>
-            ) : null}
           </div>
 
           {loading ? (
