@@ -8,6 +8,7 @@ import PartnerBanner from "@/components/PartnerBanner";
 import FAQSection from "@/components/FAQSection";
 import FeaturesBar from "@/components/FeaturesBar";
 import Footer from "@/components/Footer";
+import NovedadesCarrusel from "@/components/NovedadesCarrusel";
 import { CatalogSkeleton } from "@/components/CatalogSkeleton";
 import { useCatalogSections } from "@/hooks/providers/useCatalogSections";
 import type { Product } from "@/components/ProductCard";
@@ -175,6 +176,7 @@ const Index = () => {
       <Navbar />
       <HeroSection />
       <FeaturesBar />
+      <NovedadesCarrusel />
 
       {loading ? (
         <CatalogSkeleton />
