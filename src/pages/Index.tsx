@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
@@ -9,6 +9,7 @@ import FAQSection from "@/components/FAQSection";
 import FeaturesBar from "@/components/FeaturesBar";
 import Footer from "@/components/Footer";
 import NovedadesCarrusel from "@/components/NovedadesCarrusel";
+import PromoPopup from "@/components/PromoPopup";
 import { CatalogSkeleton } from "@/components/CatalogSkeleton";
 import { useCatalogSections } from "@/hooks/providers/useCatalogSections";
 import type { Product } from "@/components/ProductCard";
@@ -148,6 +149,10 @@ const Index = () => {
   const navigate = useNavigate();
   const { data, loading, error } = useCatalogSections();
 
+  // Popup promocional: se abre cada vez que se entra al home. El propio popup
+  // decide si mostrarse (solo si hay noticias con imagen; si no, no renderiza nada).
+  const [showPopup, setShowPopup] = useState(true);
+
   const sections: HomeSection[] = useMemo(() => {
     return data.map((collection) => {
       const { title, titleAccent } = splitTitle(collection.name);
@@ -227,6 +232,8 @@ const Index = () => {
       <PartnerBanner />
       <FAQSection />
       <Footer />
+
+      <PromoPopup isOpen={showPopup} onClose={() => setShowPopup(false)} />
     </div>
   );
 };

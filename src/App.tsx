@@ -16,6 +16,7 @@ import ProductPage from "./pages/ProductPage";
 import CheckoutPage from "./pages/CheckoutPage";
 import CatalogPage from "./pages/CatalogPage";
 import Tutoriales from "./pages/Tutoriales";
+import Novedades from "./pages/Novedades";
 import InvoicePage from "./pages/InvoicePage";
 import ProfilePage from "./pages/ProfilePage";
 import ChangePasswordPage from "./pages/ChangePasswordPage";
@@ -47,6 +48,8 @@ const App = () => (
               <Route path="/catalogo" element={<CatalogPage />} />
 
               <Route path="/tutoriales" element={<Tutoriales />} />
+
+              <Route path="/novedades" element={<Novedades />} />
 
               <Route
                 path="/producto/:id"
